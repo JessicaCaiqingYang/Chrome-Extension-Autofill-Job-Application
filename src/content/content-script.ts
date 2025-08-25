@@ -678,10 +678,24 @@ class FormDetectionSystem {
       chrome.runtime.sendMessage(
         { type: MessageType.GET_USER_PROFILE },
         (response) => {
-          resolve(response?.userProfile || null);
+          resolve(response?.data || null);
         }
       );
     });
+  }
+
+  /**
+   * Notify service worker of autofill completion
+   */
+  private async notifyAutofillComplete(result: any): Promise<void> {
+    try {
+      await chrome.runtime.sendMessage({
+        type: MessageType.AUTOFILL_COMPLETE,
+        payload: result
+      });
+    } catch (error) {
+      console.error('Error notifying autofill completion:', error);
+    }
   }
 
   /**
@@ -756,10 +770,19 @@ class FormDetectionSystem {
     chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
       switch (message.type) {
         case MessageType.TRIGGER_AUTOFILL:
-          this.handleAutofillTrigger()
+          this.handleAutofillTrigger(message.payload)
             .then(result => sendResponse(result))
             .catch(error => sendResponse({ success: false, error: error.message }));
           return true; // Keep message channel open for async response
+        
+        case MessageType.TOGGLE_AUTOFILL:
+          // Handle autofill toggle state changes
+          if (message.payload && typeof message.payload.enabled === 'boolean') {
+            console.log('Autofill toggled:', message.payload.enabled);
+            // Could implement visual indicators here
+          }
+          sendResponse({ success: true });
+          break;
         
         default:
           break;
@@ -770,43 +793,65 @@ class FormDetectionSystem {
   /**
    * Handle autofill trigger from popup
    */
-  private async handleAutofillTrigger(): Promise<{ success: boolean; filled: number; errors: string[]; fieldsDetected: number }> {
+  private async handleAutofillTrigger(payload?: any): Promise<{ success: boolean; filled: number; errors: string[]; fieldsDetected: number }> {
     try {
-      console.log('Autofill triggered');
+      console.log('Autofill triggered', payload);
 
-      // Ensure we have the latest field detection
-      await this.scanForFormFields();
+      // If payload contains user data, use it directly
+      if (payload && payload.userProfile) {
+        // Update field mappings with the provided user data
+        await this.scanForFormFields();
+        this.fieldMappings = this.mapFieldsToUserData(this.detectedFields, payload.userProfile);
+        this.applyFallbackStrategies();
+        this.fieldMappings.sort((a, b) => b.confidence - a.confidence);
+      } else {
+        // Ensure we have the latest field detection
+        await this.scanForFormFields();
+      }
 
       if (this.fieldMappings.length === 0) {
-        return {
+        const result = {
           success: false,
           filled: 0,
           errors: ['No fillable fields detected on this page'],
           fieldsDetected: this.detectedFields.length
         };
+        
+        // Notify service worker of completion
+        await this.notifyAutofillComplete(result);
+        return result;
       }
 
       // Fill the fields
-      const result = await this.fillDetectedFields();
+      const fillResult = await this.fillDetectedFields();
 
       // Show completion feedback
-      this.showAutofillCompletionFeedback(result);
+      this.showAutofillCompletionFeedback(fillResult);
 
-      return {
+      const result = {
         success: true,
-        filled: result.filled,
-        errors: result.errors,
+        filled: fillResult.filled,
+        errors: fillResult.errors,
         fieldsDetected: this.detectedFields.length
       };
 
+      // Notify service worker of completion
+      await this.notifyAutofillComplete(result);
+
+      return result;
+
     } catch (error) {
       console.error('Error during autofill:', error);
-      return {
+      const result = {
         success: false,
         filled: 0,
         errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
         fieldsDetected: this.detectedFields.length
       };
+      
+      // Notify service worker of error
+      await this.notifyAutofillComplete(result);
+      return result;
     }
   }
 

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Autofill Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .form-section {
+            background: #f9f9f9;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .test-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196f3;
+        }
+        .submit-btn {
+            background: #4caf50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .submit-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Job Application Autofill Test Page</h1>
+    
+    <div class="test-info">
+        <h3>🧪 Test Instructions</h3>
+        <p>This page contains various form fields to test the Job Application Autofill extension:</p>
+        <ol>
+            <li>Make sure you have completed your profile in the extension popup</li>
+            <li>Enable autofill in the extension</li>
+            <li>Click the "Fill Current Page" button in the extension popup</li>
+            <li>Verify that the fields below are filled with your profile data</li>
+        </ol>
+    </div>
+
+    <form id="job-application-form">
+        <div class="form-section">
+            <h2>Personal Information</h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name *</label>
+                    <input type="text" id="firstName" name="firstName" placeholder="Enter your first name" required>
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name *</label>
+                    <input type="text" id="lastName" name="lastName" placeholder="Enter your last name" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number *</label>
+                <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567" required>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Address Information</h2>
+            
+            <div class="form-group">
+                <label for="address">Street Address</label>
+                <input type="text" id="address" name="address" placeholder="123 Main Street">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" placeholder="New York">
+                </div>
+                <div class="form-group">
+                    <label for="state">State/Province</label>
+                    <input type="text" id="state" name="state" placeholder="NY">
+                </div>
+                <div class="form-group">
+                    <label for="zipCode">ZIP/Postal Code</label>
+                    <input type="text" id="zipCode" name="zipCode" placeholder="10001">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Additional Information</h2>
+            
+            <div class="form-group">
+                <label for="coverLetter">Cover Letter / Why are you interested in this position?</label>
+                <textarea id="coverLetter" name="coverLetter" placeholder="Tell us why you're interested in this role..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="experience">Years of Experience</label>
+                <select id="experience" name="experience">
+                    <option value="">Select experience level</option>
+                    <option value="0-1">0-1 years</option>
+                    <option value="2-3">2-3 years</option>
+                    <option value="4-5">4-5 years</option>
+                    <option value="6-10">6-10 years</option>
+                    <option value="10+">10+ years</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Alternative Field Names (Testing different patterns)</h2>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="applicant_first_name">Applicant First Name</label>
+                    <input type="text" id="applicant_first_name" name="applicant_first_name" placeholder="First name">
+                </div>
+                <div class="form-group">
+                    <label for="applicant_last_name">Applicant Last Name</label>
+                    <input type="text" id="applicant_last_name" name="applicant_last_name" placeholder="Last name">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="contact_email">Contact Email</label>
+                <input type="email" id="contact_email" name="contact_email" placeholder="Contact email">
+            </div>
+
+            <div class="form-group">
+                <label for="phone_number">Phone Number</label>
+                <input type="tel" id="phone_number" name="phone_number" placeholder="Phone number">
+            </div>
+        </div>
+
+        <button type="submit" class="submit-btn">Submit Application</button>
+    </form>
+
+    <script>
+        // Prevent actual form submission for testing
+        document.getElementById('job-application-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Form submission prevented for testing purposes. Check if fields were filled correctly!');
+        });
+
+        // Log form field changes for debugging
+        const inputs = document.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                console.log(`Field ${this.name || this.id} changed to: ${this.value}`);
+            });
+        });
+
+        console.log('Test page loaded. Ready for autofill testing.');
+        console.log('Detected form fields:', inputs.length);
+    </script>
+</body>
+</html>

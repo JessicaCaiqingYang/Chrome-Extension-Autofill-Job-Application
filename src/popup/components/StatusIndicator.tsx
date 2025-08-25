@@ -35,23 +35,26 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
     loadStatus();
     
     // Set up message listener for real-time updates
-    const messageListener = (message: any) => {
+    const messageListener = (message: any, _sender: any, sendResponse: any) => {
       if (message.type === MessageType.AUTOFILL_COMPLETE) {
         handleAutofillComplete(message.payload);
+        sendResponse({ success: true });
       } else if (message.type === MessageType.ERROR) {
         handleError(message.payload);
+        sendResponse({ success: true });
       }
+      return true; // Keep message channel open
     };
 
     // Add message listener
-    messaging.addMessageListener(messageListener);
+    chrome.runtime.onMessage.addListener(messageListener);
 
     // Refresh status every 30 seconds
     const interval = setInterval(loadStatus, 30000);
 
     return () => {
       clearInterval(interval);
-      // Note: Chrome extension message listeners are automatically cleaned up
+      chrome.runtime.onMessage.removeListener(messageListener);
     };
   }, []);
 
@@ -356,7 +359,12 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
               <button
                 onClick={async () => {
                   try {
-                    await messaging.triggerAutofill();
+                    const result = await messaging.triggerAutofill();
+                    if (result && result.success) {
+                      // Success is handled by the message listener
+                    } else {
+                      handleError({ error: result?.error || 'Failed to trigger autofill' });
+                    }
                   } catch (error) {
                     handleError({ error: 'Failed to trigger autofill' });
                   }

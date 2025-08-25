@@ -224,27 +224,40 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
         <div style={{ marginTop: '16px' }}>
           <button
             onClick={async () => {
+              setIsUpdating(true);
               try {
-                await messaging.triggerAutofill();
+                const result = await messaging.triggerAutofill();
+                if (result && result.success) {
+                  setError('');
+                  // Show success feedback briefly
+                  const successMsg = `Autofill completed! Filled ${result.data?.filled || 0} fields.`;
+                  setError(successMsg);
+                  setTimeout(() => setError(''), 3000);
+                } else {
+                  throw new Error(result?.error || 'Autofill failed');
+                }
               } catch (error) {
                 console.error('Error triggering autofill:', error);
                 setError('Error triggering autofill. Make sure you are on a job application page.');
-                setTimeout(() => setError(''), 3000);
+                setTimeout(() => setError(''), 5000);
+              } finally {
+                setIsUpdating(false);
               }
             }}
+            disabled={isUpdating}
             style={{
               width: '100%',
               padding: '10px',
-              backgroundColor: '#3498db',
+              backgroundColor: isUpdating ? '#95a5a6' : '#3498db',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
               fontSize: '13px',
               fontWeight: '500',
-              cursor: 'pointer'
+              cursor: isUpdating ? 'not-allowed' : 'pointer'
             }}
           >
-            🚀 Fill Current Page
+            {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
           </button>
           <div style={{ fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '4px' }}>
             Manually trigger autofill on the current tab

@@ -63,8 +63,13 @@ messaging.addMessageListener(async (message: Message, sender, sendResponse) => {
         break;
 
       case MessageType.TRIGGER_AUTOFILL:
-        await handleTriggerAutofill(sender.tab?.id);
-        sendResponse({ success: true });
+        try {
+          await handleTriggerAutofill(sender.tab?.id);
+          sendResponse({ success: true });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          sendResponse({ success: false, error: errorMessage });
+        }
         break;
 
       case MessageType.AUTOFILL_COMPLETE:
@@ -262,7 +267,7 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
     const autofillEnabled = await storage.getAutofillEnabled();
     if (!autofillEnabled) {
       console.log('Autofill is disabled, ignoring trigger');
-      return;
+      throw new Error('Autofill is disabled');
     }
 
     // Get user profile and CV data
@@ -273,7 +278,7 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
 
     if (!userProfile) {
       console.warn('No user profile found, cannot autofill');
-      return;
+      throw new Error('No user profile found. Please complete your profile first.');
     }
 
     // Send autofill data to content script
@@ -283,19 +288,34 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
       timestamp: Date.now()
     };
 
-    if (tabId) {
-      await messaging.sendToContentScript(tabId, {
-        type: MessageType.TRIGGER_AUTOFILL,
-        payload: autofillData
-      });
-    } else {
-      await messaging.sendToAllContentScripts({
-        type: MessageType.TRIGGER_AUTOFILL,
-        payload: autofillData
-      });
+    let targetTabId = tabId;
+    
+    // If no specific tab ID provided, get the active tab
+    if (!targetTabId) {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0 && tabs[0].id) {
+        targetTabId = tabs[0].id;
+      } else {
+        throw new Error('No active tab found');
+      }
     }
 
-    console.log('Autofill triggered successfully');
+    // Send message to specific tab
+    if (targetTabId) {
+      try {
+        const response = await messaging.sendToContentScript(targetTabId, {
+          type: MessageType.TRIGGER_AUTOFILL,
+          payload: autofillData
+        });
+        console.log('Autofill triggered successfully, response:', response);
+      } catch (error) {
+        console.error('Error sending message to content script:', error);
+        throw new Error('Could not communicate with the page. Please refresh and try again.');
+      }
+    } else {
+      throw new Error('No valid tab found to trigger autofill');
+    }
+
   } catch (error) {
     console.error('Error triggering autofill:', error);
     throw error;
