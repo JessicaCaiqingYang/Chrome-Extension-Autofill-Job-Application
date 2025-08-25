@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "build:verify": "npm run build && node scripts/verify-build.js",
+    "build": "tsc && vite build && node scripts/build-extension.js",
+    "build:complete": "node build-complete.cjs",
+    "build:verify": "npm run build && node scripts/test-extension.js && node scripts/verify-extension-functionality.js",
     "preview": "vite preview",
     "type-check": "tsc --noEmit"
   },

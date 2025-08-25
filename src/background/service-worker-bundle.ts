@@ -1,21 +1,173 @@
 // Service worker for Job Application Autofill extension
-// Handles background processing, storage operations, and inter-component communication
-
-import { storage } from '../shared/storage';
-import { messaging } from '../shared/messaging';
-import { Message, MessageType, UserProfile, CVData } from '../shared/types';
-// Note: PDF/DOCX parsing temporarily disabled due to browser compatibility issues
-// import pdfParse from 'pdf-parse';
-// import * as mammoth from 'mammoth';
-// import { Buffer } from 'buffer';
+// This is a bundled version that includes all dependencies inline
 
 console.log('Job Application Autofill service worker loaded');
+
+// Types (inlined)
+interface UserProfile {
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      postCode: string;
+      country: string;
+    };
+  };
+  workInfo: {
+    currentTitle?: string;
+    experience?: string;
+    skills?: string[];
+    linkedinUrl?: string;
+    portfolioUrl?: string;
+  };
+  preferences: {
+    autofillEnabled: boolean;
+    lastUpdated: number;
+  };
+}
+
+interface CVData {
+  fileName: string;
+  fileSize: number;
+  uploadDate: number;
+  extractedText: string;
+  fileType: 'pdf' | 'docx';
+}
+
+interface Message {
+  type: MessageType;
+  payload?: any;
+}
+
+enum MessageType {
+  GET_USER_PROFILE = 'GET_USER_PROFILE',
+  SET_USER_PROFILE = 'SET_USER_PROFILE',
+  GET_CV_DATA = 'GET_CV_DATA',
+  SET_CV_DATA = 'SET_CV_DATA',
+  TOGGLE_AUTOFILL = 'TOGGLE_AUTOFILL',
+  TRIGGER_AUTOFILL = 'TRIGGER_AUTOFILL',
+  AUTOFILL_COMPLETE = 'AUTOFILL_COMPLETE',
+  ERROR = 'ERROR'
+}
+
+enum StorageKey {
+  USER_PROFILE = 'userProfile',
+  CV_DATA = 'cvData',
+  AUTOFILL_ENABLED = 'autofillEnabled'
+}
+
+// Storage utilities (inlined)
+const storage = {
+  async getUserProfile(): Promise<UserProfile | null> {
+    try {
+      const result = await chrome.storage.local.get(StorageKey.USER_PROFILE);
+      return result[StorageKey.USER_PROFILE] || null;
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
+  },
+
+  async setUserProfile(profile: UserProfile): Promise<boolean> {
+    try {
+      await chrome.storage.local.set({
+        [StorageKey.USER_PROFILE]: {
+          ...profile,
+          preferences: {
+            ...profile.preferences,
+            lastUpdated: Date.now()
+          }
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Error setting user profile:', error);
+      return false;
+    }
+  },
+
+  async getCVData(): Promise<CVData | null> {
+    try {
+      const result = await chrome.storage.local.get(StorageKey.CV_DATA);
+      return result[StorageKey.CV_DATA] || null;
+    } catch (error) {
+      console.error('Error getting CV data:', error);
+      return null;
+    }
+  },
+
+  async setCVData(cvData: CVData): Promise<boolean> {
+    try {
+      await chrome.storage.local.set({
+        [StorageKey.CV_DATA]: cvData
+      });
+      return true;
+    } catch (error) {
+      console.error('Error setting CV data:', error);
+      return false;
+    }
+  },
+
+  async getAutofillEnabled(): Promise<boolean> {
+    try {
+      const result = await chrome.storage.local.get(StorageKey.AUTOFILL_ENABLED);
+      return result[StorageKey.AUTOFILL_ENABLED] ?? true;
+    } catch (error) {
+      console.error('Error getting autofill status:', error);
+      return false;
+    }
+  },
+
+  async setAutofillEnabled(enabled: boolean): Promise<boolean> {
+    try {
+      await chrome.storage.local.set({
+        [StorageKey.AUTOFILL_ENABLED]: enabled
+      });
+      return true;
+    } catch (error) {
+      console.error('Error setting autofill status:', error);
+      return false;
+    }
+  }
+};
+
+// Messaging utilities (inlined)
+const messaging = {
+  async sendToContentScript(tabId: number, message: Message): Promise<any> {
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      return response;
+    } catch (error) {
+      console.error('Error sending message to content script:', error);
+      throw error;
+    }
+  },
+
+  async sendToAllContentScripts(message: Message): Promise<void> {
+    try {
+      const tabs = await chrome.tabs.query({ active: true });
+      const promises = tabs.map(tab => {
+        if (tab.id) {
+          return this.sendToContentScript(tab.id, message).catch(error => {
+            console.debug('Could not send message to tab:', tab.id, error);
+          });
+        }
+      });
+      await Promise.allSettled(promises);
+    } catch (error) {
+      console.error('Error sending message to all content scripts:', error);
+    }
+  }
+};
 
 // Service worker installation and setup
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('Extension installed');
-
-  // Initialize default settings
   try {
     const autofillEnabled = await storage.getAutofillEnabled();
     if (autofillEnabled === null) {
@@ -27,16 +179,10 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
-// Extension uninstall cleanup
-chrome.runtime.onSuspend.addListener(async () => {
-  console.log('Extension suspending - performing cleanup');
-});
-
-// Message handling system for popup and content script communication
-messaging.addMessageListener((message: Message, sender, sendResponse) => {
+// Message handling
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
   console.log('Service worker received message:', message.type, sender);
 
-  // Handle async operations properly
   (async () => {
     try {
       switch (message.type) {
@@ -96,11 +242,10 @@ messaging.addMessageListener((message: Message, sender, sendResponse) => {
     }
   })();
 
-  // Return true to indicate we will respond asynchronously
-  return true;
+  return true; // Keep message channel open for async response
 });
 
-// Chrome storage operations for user profile data
+// Handler functions
 async function handleGetUserProfile(): Promise<UserProfile | null> {
   try {
     const profile = await storage.getUserProfile();
@@ -114,7 +259,6 @@ async function handleGetUserProfile(): Promise<UserProfile | null> {
 
 async function handleSetUserProfile(profileData: UserProfile): Promise<boolean> {
   try {
-    // Validate profile data
     if (!profileData || !profileData.personalInfo) {
       throw new Error('Invalid profile data');
     }
@@ -122,13 +266,14 @@ async function handleSetUserProfile(profileData: UserProfile): Promise<boolean> 
     const success = await storage.setUserProfile(profileData);
     console.log('User profile saved:', success);
 
-    // Notify content scripts about profile update if autofill is enabled
-    const autofillEnabled = await storage.getAutofillEnabled();
-    if (autofillEnabled && success) {
-      await messaging.sendToAllContentScripts({
-        type: MessageType.SET_USER_PROFILE,
-        payload: profileData
-      });
+    if (success) {
+      const autofillEnabled = await storage.getAutofillEnabled();
+      if (autofillEnabled) {
+        await messaging.sendToAllContentScripts({
+          type: MessageType.SET_USER_PROFILE,
+          payload: profileData
+        });
+      }
     }
 
     return success;
@@ -138,7 +283,6 @@ async function handleSetUserProfile(profileData: UserProfile): Promise<boolean> 
   }
 }
 
-// CV file processing functionality for PDF and Word documents
 async function handleGetCVData(): Promise<CVData | null> {
   try {
     const cvData = await storage.getCVData();
@@ -178,7 +322,7 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
 
     console.log('Processing CV file:', file.name, 'Type:', fileType, 'Size:', file.size);
 
-    // Extract text from file
+    // Extract text from file (placeholder implementation)
     const extractedText = await extractTextFromFile(file, fileType);
 
     if (!extractedText || extractedText.trim().length === 0) {
@@ -211,7 +355,6 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
   }
 }
 
-// Helper function to determine file type
 function getFileType(fileName: string): 'pdf' | 'docx' | null {
   const extension = fileName.toLowerCase().split('.').pop();
   switch (extension) {
@@ -225,21 +368,17 @@ function getFileType(fileName: string): 'pdf' | 'docx' | null {
   }
 }
 
-// Extract text from PDF or Word files
 async function extractTextFromFile(file: File, fileType: 'pdf' | 'docx'): Promise<string> {
   // TODO: Implement proper PDF/DOCX parsing with browser-compatible libraries
-  // For now, return a placeholder message
   console.warn('PDF/DOCX text extraction not yet implemented');
   return `[File uploaded: ${file.name} (${fileType.toUpperCase()}) - Text extraction will be implemented in a future update]`;
 }
 
-// Autofill state management
 async function handleToggleAutofill(enabled: boolean): Promise<boolean> {
   try {
     const success = await storage.setAutofillEnabled(enabled);
     console.log('Autofill toggled:', enabled, 'Success:', success);
 
-    // Notify all content scripts about the state change
     if (success) {
       await messaging.sendToAllContentScripts({
         type: MessageType.TOGGLE_AUTOFILL,
@@ -256,14 +395,12 @@ async function handleToggleAutofill(enabled: boolean): Promise<boolean> {
 
 async function handleTriggerAutofill(tabId?: number): Promise<void> {
   try {
-    // Check if autofill is enabled
     const autofillEnabled = await storage.getAutofillEnabled();
     if (!autofillEnabled) {
       console.log('Autofill is disabled, ignoring trigger');
       throw new Error('Autofill is disabled');
     }
 
-    // Get user profile and CV data
     const [userProfile, cvData] = await Promise.all([
       storage.getUserProfile(),
       storage.getCVData()
@@ -274,7 +411,6 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
       throw new Error('No user profile found. Please complete your profile first.');
     }
 
-    // Send autofill data to content script
     const autofillData = {
       userProfile,
       cvData,
@@ -283,7 +419,6 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
 
     let targetTabId = tabId;
     
-    // If no specific tab ID provided, get the active tab
     if (!targetTabId) {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tabs.length > 0 && tabs[0].id) {
@@ -293,7 +428,6 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
       }
     }
 
-    // Send message to specific tab
     if (targetTabId) {
       try {
         const response = await messaging.sendToContentScript(targetTabId, {
@@ -318,9 +452,6 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
 async function handleAutofillComplete(result: any): Promise<void> {
   try {
     console.log('Autofill completed:', result);
-
-    // Could implement analytics or logging here
-    // For now, just log the completion
     if (result.success) {
       console.log('Autofill successful:', result.fieldsFilledCount || 0, 'fields filled');
     } else {
@@ -334,19 +465,14 @@ async function handleAutofillComplete(result: any): Promise<void> {
 async function handleError(errorData: { error: string; details?: any }): Promise<void> {
   try {
     console.error('Extension error reported:', errorData.error, errorData.details);
-
-    // Could implement error reporting or recovery mechanisms here
-    // For now, just log the error
   } catch (error) {
     console.error('Error handling error report:', error);
   }
 }
 
-// Storage change listener for debugging and state synchronization
+// Storage change listener
 chrome.storage.onChanged.addListener((changes, namespace) => {
   console.log('Storage changed:', namespace, changes);
-
-  // Notify content scripts about relevant storage changes
   Object.keys(changes).forEach(async (key) => {
     if (key === 'autofillEnabled') {
       await messaging.sendToAllContentScripts({
@@ -357,7 +483,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   });
 });
 
-// Error handling for unhandled promise rejections
+// Error handling
 self.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection in service worker:', event.reason);
   event.preventDefault();

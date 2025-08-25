@@ -13,21 +13,28 @@ export default defineConfig({
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          const facadeModuleId = chunkInfo.facadeModuleId
-          if (facadeModuleId?.includes('service-worker')) {
-            return 'background/[name].js'
+          const name = chunkInfo.name
+          if (name === 'background') {
+            return 'background/background.js'
           }
-          if (facadeModuleId?.includes('content-script')) {
-            return 'content/[name].js'
+          if (name === 'content') {
+            return 'content/content.js'
           }
           return 'popup/[name].js'
         },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        assetFileNames: (assetInfo) => {
+          // Handle HTML files specifically
+          if (assetInfo.name?.endsWith('.html')) {
+            return 'popup/[name].[ext]'
+          }
+          return 'assets/[name]-[hash].[ext]'
+        },
+        chunkFileNames: 'assets/[name]-[hash].js'
       }
     },
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    target: 'es2020'
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
