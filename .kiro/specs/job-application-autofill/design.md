@@ -94,7 +94,7 @@ interface UserProfile {
       street: string;
       city: string;
       state: string;
-      zipCode: string;
+      postCode: string;
       country: string;
     };
   };
@@ -140,7 +140,7 @@ enum FieldType {
   ADDRESS = 'address',
   CITY = 'city',
   STATE = 'state',
-  ZIP_CODE = 'zipCode',
+  POSTCODE = 'postCode',
   COVER_LETTER = 'coverLetter',
   RESUME_TEXT = 'resumeText'
 }
