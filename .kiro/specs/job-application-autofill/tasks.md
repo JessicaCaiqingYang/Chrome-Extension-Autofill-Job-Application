@@ -20,26 +20,26 @@
   - Implement autofill state management
   - _Requirements: 1.2, 2.2, 2.4, 3.2, 6.1_
 
-- [ ] 4. Create popup interface components
-- [ ] 4.1 Build ProfileForm component
+- [x] 4. Create popup interface components
+- [x] 4.1 Build ProfileForm component
   - Create React form component for user profile data entry
   - Implement form validation and error handling
   - Add data persistence integration with service worker
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 4.2 Implement CVUploader component
+- [x] 4.2 Implement CVUploader component
   - Create file upload interface with PDF/Word support
   - Add file validation and size limit checking
   - Implement upload progress and success feedback
   - _Requirements: 2.1, 2.2, 2.4, 2.5_
 
-- [ ] 4.3 Build AutofillToggle component
+- [x] 4.3 Build AutofillToggle component
   - Create toggle switch component for autofill control
   - Implement state synchronization with service worker
   - Add visual indicators for active/inactive states
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 4.4 Create StatusIndicator component
+- [x] 4.4 Create StatusIndicator component
   - Build status display component for extension feedback
   - Implement real-time status updates from service worker
   - Add error message display functionality
