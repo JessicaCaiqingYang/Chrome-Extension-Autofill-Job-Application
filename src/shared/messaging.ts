@@ -74,10 +74,20 @@ export const messaging = {
     });
   },
 
-  async setCVData(cvData: any): Promise<any> {
+  async setCVData(file: File): Promise<any> {
+    // Convert File to ArrayBuffer for message passing
+    const arrayBuffer = await file.arrayBuffer();
+    const fileData = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+      arrayBuffer: arrayBuffer
+    };
+    
     return this.sendToServiceWorker({
       type: MessageType.SET_CV_DATA,
-      payload: cvData
+      payload: { fileData }
     });
   },
 
