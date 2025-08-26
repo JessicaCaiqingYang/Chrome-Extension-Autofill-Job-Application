@@ -3,8 +3,14 @@
 
 import { fieldMapping } from '../shared/fieldMapping';
 import { FieldType, FieldMapping, MessageType, Message } from '../shared/types';
+import { messaging } from '../shared/messaging';
 
 console.log('Job Application Autofill content script loaded');
+
+// Signal that the content script is ready
+chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' }).catch(() => {
+  // Ignore errors if service worker is not ready
+});
 
 class FormDetectionSystem {
   private detectedFields: HTMLElement[] = [];
@@ -772,27 +778,72 @@ class FormDetectionSystem {
    * Set up message listener for communication with other extension components
    */
   private setupMessageListener(): void {
-    chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
-      switch (message.type) {
-        case MessageType.TRIGGER_AUTOFILL:
-          this.handleAutofillTrigger(message.payload)
-            .then(result => sendResponse(result))
-            .catch(error => sendResponse({ success: false, error: error.message }));
-          return true; // Keep message channel open for async response
+    // Primary message listener for handling autofill triggers
+    chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
+      console.log('Content script received message:', message.type, 'from:', sender?.tab?.id || 'popup');
+      
+      try {
+        switch (message.type) {
+          case MessageType.TRIGGER_AUTOFILL:
+            // Handle autofill trigger asynchronously
+            this.handleAutofillTrigger(message.payload)
+              .then(result => {
+                console.log('Autofill trigger completed:', result);
+                sendResponse(result);
+              })
+              .catch(error => {
+                console.error('Autofill trigger failed:', error);
+                sendResponse({ success: false, error: error.message });
+              });
+            return true; // Keep message channel open for async response
 
-        case MessageType.TOGGLE_AUTOFILL:
-          // Handle autofill toggle state changes
-          if (message.payload && typeof message.payload.enabled === 'boolean') {
-            console.log('Autofill toggled:', message.payload.enabled);
-            // Could implement visual indicators here
-          }
-          sendResponse({ success: true });
-          break;
+          case MessageType.TOGGLE_AUTOFILL:
+            // Handle autofill toggle state changes
+            if (message.payload && typeof message.payload.enabled === 'boolean') {
+              console.log('Autofill toggled:', message.payload.enabled);
+              // Could implement visual indicators here
+            }
+            sendResponse({ success: true });
+            return false; // Synchronous response
 
-        default:
-          break;
+          case 'PING' as any:
+            // Health check - respond immediately
+            console.log('Content script ping received');
+            sendResponse({ success: true, status: 'ready' });
+            return false; // Synchronous response
+
+          default:
+            console.warn('Unknown message type:', message.type);
+            sendResponse({ success: false, error: 'Unknown message type' });
+            return false;
+        }
+      } catch (error) {
+        console.error('Error in message handler:', error);
+        sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        return false;
       }
     });
+
+    // Backup message listener for additional compatibility
+    messaging.addMessageListener(async (message, _sender, sendResponse) => {
+      console.log('Content script received message via messaging utility:', message.type);
+      
+      try {
+        if (message.type === MessageType.TRIGGER_AUTOFILL) {
+          const result = await this.handleAutofillTrigger(message.payload);
+          sendResponse?.(result);
+          return true;
+        }
+        
+        sendResponse?.({ success: false, error: 'Unknown message type' });
+      } catch (err) {
+        console.error('Content script message handler error:', err);
+        sendResponse?.({ success: false, error: String(err) });
+      }
+      return true;
+    });
+
+    console.log('Content script message listeners set up successfully');
   }
 
   /**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../../shared/types';
 import { messaging } from '../../shared/messaging';
 
@@ -19,6 +19,10 @@ interface FormErrors {
 }
 
 export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => {
+  // stable id prefix for form fields (avoids collisions and unused-useId issues)
+  const idPrefixRef = useRef(`pf-${Math.random().toString(36).slice(2, 8)}`);
+  const idPrefix = idPrefixRef.current;
+
   const [profile, setProfile] = useState<UserProfile>({
     personalInfo: {
       firstName: '',
@@ -205,11 +209,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
       <div style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-firstName`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               First Name *
             </label>
             <input
+              id={`${idPrefix}-firstName`}
+              name="given-name"
               type="text"
+              autoComplete="given-name"
               value={profile.personalInfo.firstName}
               onChange={(e) => handleInputChange('personalInfo.firstName', e.target.value)}
               style={{
@@ -230,11 +237,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
           </div>
 
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-lastName`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               Last Name *
             </label>
             <input
+              id={`${idPrefix}-lastName`}
+              name="family-name"
               type="text"
+              autoComplete="family-name"
               value={profile.personalInfo.lastName}
               onChange={(e) => handleInputChange('personalInfo.lastName', e.target.value)}
               style={{
@@ -256,11 +266,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-email`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Email *
           </label>
           <input
+            id={`${idPrefix}-email`}
+            name="email"
             type="email"
+            autoComplete="email"
             value={profile.personalInfo.email}
             onChange={(e) => handleInputChange('personalInfo.email', e.target.value)}
             style={{
@@ -281,11 +294,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-phone`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Phone *
           </label>
           <input
+            id={`${idPrefix}-phone`}
+            name="tel"
             type="tel"
+            autoComplete="tel"
             value={profile.personalInfo.phone}
             onChange={(e) => handleInputChange('personalInfo.phone', e.target.value)}
             style={{
@@ -310,11 +326,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
       <h4 style={{ margin: '16px 0 12px 0', fontSize: '14px' }}>Address</h4>
       <div style={{ marginBottom: '16px' }}>
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-street`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Street Address
           </label>
           <input
+            id={`${idPrefix}-street`}
+            name="street-address"
             type="text"
+            autoComplete="street-address"
             value={profile.personalInfo.address.street}
             onChange={(e) => handleInputChange('address.street', e.target.value)}
             style={{
@@ -331,11 +350,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-city`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               City
             </label>
             <input
+              id={`${idPrefix}-city`}
+              name="address-level2"
               type="text"
+              autoComplete="address-level2"
               value={profile.personalInfo.address.city}
               onChange={(e) => handleInputChange('address.city', e.target.value)}
               style={{
@@ -351,11 +373,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
           </div>
 
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-state`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               State
             </label>
             <input
+              id={`${idPrefix}-state`}
+              name="address-level1"
               type="text"
+              autoComplete="address-level1"
               value={profile.personalInfo.address.state}
               onChange={(e) => handleInputChange('address.state', e.target.value)}
               style={{
@@ -373,11 +398,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
 
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-postal`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               Postal Code
             </label>
             <input
+              id={`${idPrefix}-postal`}
+              name="postal-code"
               type="text"
+              autoComplete="postal-code"
               value={profile.personalInfo.address.postCode}
               onChange={(e) => handleInputChange('address.postCode', e.target.value)}
               style={{
@@ -393,11 +421,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
           </div>
 
           <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+            <label htmlFor={`${idPrefix}-country`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               Country
             </label>
             <input
+              id={`${idPrefix}-country`}
+              name="country-name"
               type="text"
+              autoComplete="country-name"
               value={profile.personalInfo.address.country}
               onChange={(e) => handleInputChange('address.country', e.target.value)}
               style={{
@@ -418,11 +449,14 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
       <h4 style={{ margin: '16px 0 12px 0', fontSize: '14px' }}>Work Information (Optional)</h4>
       <div style={{ marginBottom: '16px' }}>
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-jobTitle`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Current Job Title
           </label>
           <input
+            id={`${idPrefix}-jobTitle`}
+            name="organization-title"
             type="text"
+            autoComplete="organization-title"
             value={profile.workInfo.currentTitle || ''}
             onChange={(e) => handleInputChange('workInfo.currentTitle', e.target.value)}
             style={{
@@ -438,10 +472,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-experience`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Years of Experience
           </label>
           <input
+            id={`${idPrefix}-experience`}
+            name="experience"
             type="text"
             value={profile.workInfo.experience || ''}
             onChange={(e) => handleInputChange('workInfo.experience', e.target.value)}
@@ -458,10 +494,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-skills`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Skills (comma-separated)
           </label>
           <input
+            id={`${idPrefix}-skills`}
+            name="skills"
             type="text"
             value={profile.workInfo.skills?.join(', ') || ''}
             onChange={(e) => handleSkillsChange(e.target.value)}
@@ -478,10 +516,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-linkedin`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             LinkedIn URL
           </label>
           <input
+            id={`${idPrefix}-linkedin`}
+            name="linkedin"
             type="url"
             value={profile.workInfo.linkedinUrl || ''}
             onChange={(e) => handleInputChange('workInfo.linkedinUrl', e.target.value)}
@@ -498,10 +538,12 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
         </div>
 
         <div style={{ marginBottom: '12px' }}>
-          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
+          <label htmlFor={`${idPrefix}-portfolio`} style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
             Portfolio URL
           </label>
           <input
+            id={`${idPrefix}-portfolio`}
+            name="portfolio"
             type="url"
             value={profile.workInfo.portfolioUrl || ''}
             onChange={(e) => handleInputChange('workInfo.portfolioUrl', e.target.value)}

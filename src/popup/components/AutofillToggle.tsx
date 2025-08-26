@@ -237,8 +237,19 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
                 }
               } catch (error) {
                 console.error('Error triggering autofill:', error);
-                setError('Error triggering autofill. Make sure you are on a job application page.');
-                setTimeout(() => setError(''), 5000);
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                
+                if (errorMessage.includes('No web page tabs found')) {
+                  setError('Please open a job application website in a new tab and try again.');
+                } else if (errorMessage.includes('Cannot autofill on this page')) {
+                  setError('Cannot autofill on this page. Please navigate to a job application website.');
+                } else if (errorMessage.includes('No user profile found')) {
+                  setError('Please complete your profile first in the Profile tab.');
+                } else {
+                  setError('Error triggering autofill. Make sure you are on a job application page.');
+                }
+                
+                setTimeout(() => setError(''), 7000);
               } finally {
                 setIsUpdating(false);
               }
@@ -256,10 +267,10 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
               cursor: isUpdating ? 'not-allowed' : 'pointer'
             }}
           >
-            {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
+  {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
           </button>
           <div style={{ fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '4px' }}>
-            Manually trigger autofill on the current tab
+            Fills forms on the active web page tab
           </div>
         </div>
       )}

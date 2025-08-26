@@ -4,24 +4,38 @@ import { Message, MessageType } from './types';
 export const messaging = {
   // Send message to service worker from popup or content script
   async sendToServiceWorker(message: Message): Promise<any> {
-    try {
-      const response = await chrome.runtime.sendMessage(message);
-      return response;
-    } catch (error) {
-      console.error('Error sending message to service worker:', error);
-      throw error;
-    }
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.runtime.sendMessage(message, (response) => {
+          if (chrome.runtime.lastError) {
+            console.debug('sendToServiceWorker lastError:', chrome.runtime.lastError.message);
+            return reject(chrome.runtime.lastError);
+          }
+          resolve(response);
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   },
 
   // Send message to content script from service worker
   async sendToContentScript(tabId: number, message: Message): Promise<any> {
-    try {
-      const response = await chrome.tabs.sendMessage(tabId, message);
-      return response;
-    } catch (error) {
-      console.error('Error sending message to content script:', error);
-      throw error;
+    if (tabId === undefined || tabId === null) {
+      throw new Error('Invalid tabId');
     }
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.tabs.sendMessage(tabId, message, (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(chrome.runtime.lastError);
+          }
+          resolve(response);
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   },
 
   // Send message to all content scripts
@@ -44,13 +58,24 @@ export const messaging = {
 
   // Listen for messages (to be used in service worker and content scripts)
   addMessageListener(callback: (message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => void): void {
+    // Log registration so we can confirm listener is active in each context
+    try {
+      console.debug('messaging.addMessageListener registered in context:', (typeof window !== 'undefined') ? 'window' : 'worker');
+    } catch { }
+
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      // Validate message format
-      if (message && typeof message.type === 'string') {
-        callback(message as Message, sender, sendResponse);
-        return true; // Keep message channel open for async responses
+      // Quick validation and debug to help track "receiving end does not exist" problems
+      if (!message || typeof (message as any).type !== 'string') {
+        return false;
       }
-      return false;
+      console.debug('messaging.onMessage received:', (message as any).type, 'from', sender?.tab?.id ?? sender?.id ?? 'unknown');
+      try {
+        callback(message as Message, sender, sendResponse);
+      } catch (err) {
+        console.error('Error in message callback:', err);
+        try { sendResponse({ success: false, error: String(err) }); } catch { }
+      }
+      return true; // Keep message channel open for async responses
     });
   },
 
@@ -84,7 +109,7 @@ export const messaging = {
       lastModified: file.lastModified,
       arrayBuffer: arrayBuffer
     };
-    
+
     return this.sendToServiceWorker({
       type: MessageType.SET_CV_DATA,
       payload: { fileData }

@@ -9,7 +9,7 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
         background: resolve(__dirname, 'src/background/service-worker.ts'),
-        content: resolve(__dirname, 'src/content/content-script.ts'),
+        content: resolve(__dirname, 'src/content/content-script-standalone.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
@@ -29,7 +29,21 @@ export default defineConfig({
           }
           return 'assets/[name]-[hash].[ext]'
         },
-        chunkFileNames: 'assets/[name]-[hash].js'
+        chunkFileNames: 'assets/[name]-[hash].js',
+        manualChunks: (id) => {
+          // Don't create shared chunks for content script - inline everything
+          if (id.includes('content-script') || id.includes('src/shared')) {
+            return undefined;
+          }
+          // Allow shared chunks for popup and background
+          if (id.includes('node_modules') && !id.includes('content-script')) {
+            return 'vendor';
+          }
+        }
+      },
+      external: (id) => {
+        // Don't externalize anything for content script
+        return false;
       }
     },
     outDir: 'dist',

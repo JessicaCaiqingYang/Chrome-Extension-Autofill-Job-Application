@@ -85,6 +85,11 @@ messaging.addMessageListener((message: Message, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
 
+        case 'CONTENT_SCRIPT_READY' as any:
+          console.log('Content script ready signal received from tab:', sender.tab?.id);
+          sendResponse({ success: true });
+          break;
+
         default:
           console.warn('Unknown message type:', message.type);
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -282,28 +287,95 @@ async function handleTriggerAutofill(tabId?: number): Promise<void> {
     };
 
     let targetTabId = tabId;
-    
+
     // If no specific tab ID provided, get the active tab
     if (!targetTabId) {
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs.length > 0 && tabs[0].id) {
-        targetTabId = tabs[0].id;
+      
+      // Filter out extension pages and find the first valid web page
+      const webTabs = tabs.filter(tab => 
+        tab.url && 
+        !tab.url.startsWith('chrome://') && 
+        !tab.url.startsWith('chrome-extension://') &&
+        !tab.url.startsWith('moz-extension://') &&
+        !tab.url.startsWith('edge-extension://')
+      );
+      
+      if (webTabs.length > 0 && webTabs[0].id) {
+        targetTabId = webTabs[0].id;
       } else {
-        throw new Error('No active tab found');
+        // If no web tabs found, try to get any available web tab
+        const allTabs = await chrome.tabs.query({ currentWindow: true });
+        const webTabsInWindow = allTabs.filter(tab => 
+          tab.url && 
+          !tab.url.startsWith('chrome://') && 
+          !tab.url.startsWith('chrome-extension://') &&
+          !tab.url.startsWith('moz-extension://') &&
+          !tab.url.startsWith('edge-extension://')
+        );
+          
+        if (webTabsInWindow.length > 0 && webTabsInWindow[0].id) {
+          targetTabId = webTabsInWindow[0].id;
+        } else {
+          throw new Error('No web page tabs found. Please open a job application website and try again.');
+        }
       }
     }
 
-    // Send message to specific tab
+    // Validate the target tab
     if (targetTabId) {
+      const targetTab = await chrome.tabs.get(targetTabId);
+      console.log('Target tab:', targetTab.url);
+      
+      if (!targetTab.url || 
+          targetTab.url.startsWith('chrome://') || 
+          targetTab.url.startsWith('chrome-extension://') ||
+          targetTab.url.startsWith('moz-extension://') ||
+          targetTab.url.startsWith('edge-extension://')) {
+        throw new Error('Cannot autofill on this page. Please navigate to a job application website and try again.');
+      }
+
       try {
+        // First, ping the content script to check if it's responsive
+        console.log('Pinging content script on tab:', targetTabId, targetTab.url);
+        await messaging.sendToContentScript(targetTabId, {
+          type: 'PING' as any,
+          payload: {}
+        });
+
+        // If ping succeeds, send the autofill trigger
         const response = await messaging.sendToContentScript(targetTabId, {
           type: MessageType.TRIGGER_AUTOFILL,
           payload: autofillData
         });
         console.log('Autofill triggered successfully, response:', response);
       } catch (error) {
-        console.error('Error sending message to content script:', error);
-        throw new Error('Could not communicate with the page. Please refresh and try again.');
+        console.error('Error communicating with content script:', error);
+
+        // If content script is not responding, try to inject it manually
+        try {
+          console.log('Attempting to inject content script manually...');
+
+          // Inject the content script manually
+          await chrome.scripting.executeScript({
+            target: { tabId: targetTabId },
+            files: ['content/content.js']
+          });
+
+          // Wait a moment for the content script to initialize
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Try sending the message again
+          const retryResponse = await messaging.sendToContentScript(targetTabId, {
+            type: MessageType.TRIGGER_AUTOFILL,
+            payload: autofillData
+          });
+          console.log('Autofill triggered successfully after manual injection, response:', retryResponse);
+
+        } catch (injectionError) {
+          console.error('Failed to inject content script:', injectionError);
+          throw new Error('Could not communicate with the page. Please refresh and try again.');
+        }
       }
     } else {
       throw new Error('No valid tab found to trigger autofill');
