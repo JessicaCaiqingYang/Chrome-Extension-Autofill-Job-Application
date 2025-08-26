@@ -19,15 +19,14 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
   const loadAutofillStatus = async () => {
     setIsLoading(true);
     setError('');
-    
+
     try {
       // Get current user profile to check autofill preference
       const profile = await messaging.getUserProfile();
-      if (profile && profile.preferences) {
-        setIsEnabled(profile.preferences.autofillEnabled);
-      } else {
-        // Default to enabled if no profile exists
-        setIsEnabled(true);
+      if (profile) {
+        // safe access with fallback
+        const mergedPref = { ...(profile.preferences || {}) };
+        setIsEnabled(Boolean(mergedPref.autofillEnabled ?? true));
       }
     } catch (error) {
       console.error('Error loading autofill status:', error);
@@ -49,10 +48,10 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
     try {
       // Update autofill status through service worker
       const result = await messaging.toggleAutofill(newState);
-      
+
       if (result && result.success) {
         setIsEnabled(newState);
-        
+
         if (onToggleChange) {
           onToggleChange(newState);
         }
@@ -62,7 +61,7 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
     } catch (error) {
       console.error('Error toggling autofill:', error);
       setError('Error updating autofill status. Please try again.');
-      
+
       // Revert the state on error
       // Note: We don't change isEnabled here since the toggle failed
     } finally {
@@ -97,7 +96,7 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
   return (
     <div style={{ padding: '16px' }}>
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Autofill Control</h3>
-      
+
       {/* Toggle Switch Container */}
       <div
         style={{
@@ -122,10 +121,10 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
           >
             {getStatusText()}
           </div>
-          
+
           {/* Description */}
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {isEnabled 
+            {isEnabled
               ? 'Extension will automatically fill job application forms'
               : 'Extension will not fill forms automatically'
             }

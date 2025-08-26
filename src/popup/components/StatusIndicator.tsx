@@ -33,7 +33,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   // Load initial status
   useEffect(() => {
     loadStatus();
-    
+
     // Set up message listener for real-time updates
     const messageListener = (message: any, _sender: any, sendResponse: any) => {
       if (message.type === MessageType.AUTOFILL_COMPLETE) {
@@ -65,12 +65,21 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
         messaging.getCVData().catch(() => null)
       ]);
 
+      const defaultProfile = {
+        personalInfo: { firstName: '', lastName: '', email: '', phone: '', address: {} },
+        workInfo: {},
+        preferences: {}
+      };
+      const mergedProfile = profile
+        ? { ...defaultProfile, ...profile, personalInfo: { ...defaultProfile.personalInfo, ...(profile.personalInfo || {}) } }
+        : null;
+
       const newStatus: ExtensionStatus = {
         isReady: true,
-        hasProfile: !!(profile && profile.personalInfo && profile.personalInfo.firstName && profile.personalInfo.email),
+        hasProfile: !!(mergedProfile && mergedProfile.personalInfo && mergedProfile.personalInfo.firstName && mergedProfile.personalInfo.email),
         hasCV: !!(cvData && cvData.fileName),
-        autofillEnabled: profile?.preferences?.autofillEnabled ?? true,
-        lastActivity: profile?.preferences?.lastUpdated ? new Date(profile.preferences.lastUpdated).toLocaleTimeString() : undefined,
+        autofillEnabled: mergedProfile?.preferences?.autofillEnabled ?? true,
+        lastActivity: mergedProfile?.preferences?.lastUpdated ? new Date(mergedProfile.preferences.lastUpdated).toLocaleTimeString() : undefined,
         errors: [],
         warnings: []
       };
@@ -79,7 +88,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       if (!newStatus.hasProfile) {
         newStatus.warnings.push('Profile information is incomplete');
       }
-      
+
       if (!newStatus.hasCV) {
         newStatus.warnings.push('No CV uploaded');
       }
@@ -174,7 +183,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   return (
     <div className={className} style={{ padding: '16px', ...style }}>
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Extension Status</h3>
-      
+
       {/* Overall Status */}
       <div
         style={{
@@ -225,7 +234,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       {/* Detailed Status */}
       <div style={{ marginBottom: '16px' }}>
         <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Component Status</h4>
-        
+
         <div style={{ fontSize: '12px', lineHeight: '1.6' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
             <span style={{ marginRight: '8px' }}>
@@ -233,14 +242,14 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
             </span>
             <span>Profile Data: {status.hasProfile ? 'Complete' : 'Missing or incomplete'}</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
             <span style={{ marginRight: '8px' }}>
               {status.hasCV ? '✅' : '⚠️'}
             </span>
             <span>CV Upload: {status.hasCV ? 'Uploaded' : 'Not uploaded'}</span>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
             <span style={{ marginRight: '8px' }}>
               {status.autofillEnabled ? '✅' : '⏸️'}
@@ -354,7 +363,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
                 Complete your profile first
               </div>
             )}
-            
+
             {status.hasProfile && status.autofillEnabled && (
               <button
                 onClick={async () => {

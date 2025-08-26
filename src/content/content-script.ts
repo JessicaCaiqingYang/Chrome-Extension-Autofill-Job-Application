@@ -65,7 +65,7 @@ class FormDetectionSystem {
       ]);
 
       // Filter for fillable fields only
-      this.detectedFields = allFields.filter(field => 
+      this.detectedFields = allFields.filter(field =>
         fieldMapping.isFieldFillable(field)
       );
 
@@ -73,7 +73,7 @@ class FormDetectionSystem {
       await this.classifyFieldTypes();
 
       console.log(`Detected ${this.detectedFields.length} fillable form fields`);
-      
+
       return this.detectedFields;
     } finally {
       this.isScanning = false;
@@ -96,7 +96,7 @@ class FormDetectionSystem {
     ];
 
     const fields: HTMLElement[] = [];
-    
+
     selectors.forEach(selector => {
       const elements = document.querySelectorAll(selector);
       elements.forEach(element => {
@@ -115,7 +115,7 @@ class FormDetectionSystem {
 
     // Look for elements within form containers
     const formContainers = document.querySelectorAll('form, [class*="form"], [id*="form"]');
-    
+
     formContainers.forEach(container => {
       // Find input-like elements within form containers
       const inputs = container.querySelectorAll('input, textarea, select');
@@ -180,7 +180,7 @@ class FormDetectionSystem {
    */
   private isLikelyFormField(element: HTMLElement): boolean {
     const tagName = element.tagName.toLowerCase();
-    
+
     // Must be a form input element
     if (!['input', 'textarea', 'select'].includes(tagName)) {
       return false;
@@ -212,7 +212,7 @@ class FormDetectionSystem {
    */
   private hasRelevantAttributes(element: HTMLElement): boolean {
     const input = element as HTMLInputElement;
-    
+
     // Check for common form field attributes
     const relevantAttributes = [
       input.name,
@@ -298,6 +298,11 @@ class FormDetectionSystem {
         console.log('No user profile available for field mapping');
         return;
       }
+      // ensure nested shape exists so later reads like userProfile.personalInfo.firstName are safe
+      if (userProfile && !userProfile.personalInfo) {
+        userProfile.personalInfo = { firstName: '', lastName: '', email: '' };
+      }
+      // use personal.firstName etc.
 
       // Map fields to user data using the intelligent mapping system
       this.fieldMappings = this.mapFieldsToUserData(this.detectedFields, userProfile);
@@ -308,7 +313,7 @@ class FormDetectionSystem {
       // Sort by confidence score
       this.fieldMappings.sort((a, b) => b.confidence - a.confidence);
 
-      console.log(`Mapped ${this.fieldMappings.length} fields with confidence scores:`, 
+      console.log(`Mapped ${this.fieldMappings.length} fields with confidence scores:`,
         this.fieldMappings.map(m => ({ type: m.fieldType, confidence: m.confidence }))
       );
 
@@ -338,7 +343,7 @@ class FormDetectionSystem {
    */
   private createFieldMapping(field: HTMLElement, userProfile: any): FieldMapping | null {
     const inputElement = field as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    
+
     // Strategy 1: Use existing field mapping logic
     const basicMapping = fieldMapping.identifyFieldType(field, userProfile);
     if (basicMapping && basicMapping.confidence > 0.5) {
@@ -366,9 +371,9 @@ class FormDetectionSystem {
     // Return the best mapping found, even if confidence is low
     const allMappings = [basicMapping, attributeMapping, contextMapping, positionMapping]
       .filter(Boolean) as FieldMapping[];
-    
+
     if (allMappings.length > 0) {
-      return allMappings.reduce((best, current) => 
+      return allMappings.reduce((best, current) =>
         current.confidence > best.confidence ? current : best
       );
     }
@@ -556,9 +561,9 @@ class FormDetectionSystem {
     const form = element.closest('form') || document.body;
     const allInputs = Array.from(form.querySelectorAll('input, textarea, select'))
       .filter(el => fieldMapping.isFieldFillable(el as HTMLElement)) as HTMLElement[];
-    
+
     const elementIndex = allInputs.indexOf(element as HTMLElement);
-    
+
     if (elementIndex === -1) return null;
 
     // Common field order patterns
@@ -620,7 +625,7 @@ class FormDetectionSystem {
    * Apply fallback strategies for fields that couldn't be mapped with high confidence
    */
   private applyFallbackStrategies(): void {
-    const unmappedFields = this.detectedFields.filter(field => 
+    const unmappedFields = this.detectedFields.filter(field =>
       !this.fieldMappings.some(mapping => mapping.element === field)
     );
 
@@ -637,7 +642,7 @@ class FormDetectionSystem {
    */
   private createFallbackMapping(field: HTMLElement): FieldMapping | null {
     const inputElement = field as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    
+
     // Fallback based on input type
     if (inputElement.type === 'email') {
       return {
@@ -711,7 +716,7 @@ class FormDetectionSystem {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as Element;
-              
+
               // Check if the added node contains form fields
               if (this.containsFormFields(element)) {
                 shouldRescan = true;
@@ -751,14 +756,14 @@ class FormDetectionSystem {
    */
   private containsFormFields(element: Element): boolean {
     const formSelectors = ['input', 'textarea', 'select', 'form'];
-    
+
     // Check the element itself
     if (formSelectors.includes(element.tagName.toLowerCase())) {
       return true;
     }
 
     // Check descendants
-    return formSelectors.some(selector => 
+    return formSelectors.some(selector =>
       element.querySelector(selector) !== null
     );
   }
@@ -774,7 +779,7 @@ class FormDetectionSystem {
             .then(result => sendResponse(result))
             .catch(error => sendResponse({ success: false, error: error.message }));
           return true; // Keep message channel open for async response
-        
+
         case MessageType.TOGGLE_AUTOFILL:
           // Handle autofill toggle state changes
           if (message.payload && typeof message.payload.enabled === 'boolean') {
@@ -783,7 +788,7 @@ class FormDetectionSystem {
           }
           sendResponse({ success: true });
           break;
-        
+
         default:
           break;
       }
@@ -816,7 +821,7 @@ class FormDetectionSystem {
           errors: ['No fillable fields detected on this page'],
           fieldsDetected: this.detectedFields.length
         };
-        
+
         // Notify service worker of completion
         await this.notifyAutofillComplete(result);
         return result;
@@ -848,7 +853,7 @@ class FormDetectionSystem {
         errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
         fieldsDetected: this.detectedFields.length
       };
-      
+
       // Notify service worker of error
       await this.notifyAutofillComplete(result);
       return result;
@@ -915,7 +920,7 @@ class FormDetectionSystem {
 
       // Use safe filling method
       const success = this.safelyFillField(element, value);
-      
+
       if (!success) {
         return false;
       }
@@ -1048,7 +1053,7 @@ class FormDetectionSystem {
       max-width: 300px;
     `;
 
-    const message = result.errors.length === 0 
+    const message = result.errors.length === 0
       ? `✓ Successfully filled ${result.filled} fields`
       : `⚠ Filled ${result.filled} fields with ${result.errors.length} errors`;
 
@@ -1081,7 +1086,7 @@ class FormDetectionSystem {
    */
   private injectStyles(): void {
     const styleId = 'job-autofill-styles';
-    
+
     // Don't inject if already exists
     if (document.getElementById(styleId)) {
       return;

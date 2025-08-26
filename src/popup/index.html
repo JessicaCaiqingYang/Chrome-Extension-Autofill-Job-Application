@@ -1,21 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Job Application Autofill</title>
-    <style>
-      body {
-        width: 350px;
-        min-height: 400px;
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Application Autofill</title>
+  <style>
+    /* Prefer min-width so the popup can expand if needed */
+    html,
+    body {
+      min-width: 420px;
+      /* adjust as needed (420-480 is common) */
+      max-width: 600px;
+      box-sizing: border-box;
+      min-height: 400px;
+      margin: 0;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    }
+
+    /* Optional root container sizing */
+    #root {
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="./main.tsx"></script>
+</body>
+
 </html>

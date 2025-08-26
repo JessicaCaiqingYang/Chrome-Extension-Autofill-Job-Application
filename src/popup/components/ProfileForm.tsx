@@ -61,7 +61,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
     try {
       const existingProfile = await messaging.getUserProfile();
       if (existingProfile) {
-        setProfile(existingProfile);
+        setProfile(prev => ({
+          ...prev,
+          ...existingProfile,
+          personalInfo: { ...(prev.personalInfo || {}), ...(existingProfile.personalInfo || {}) },
+          workInfo: { ...(prev.workInfo || {}), ...(existingProfile.workInfo || {}) },
+          preferences: { ...(prev.preferences || {}), ...(existingProfile.preferences || {}) }
+        }));
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -102,7 +108,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
   const handleInputChange = (field: string, value: string) => {
     setProfile(prev => {
       const newProfile = { ...prev };
-      
+
       // Handle nested fields
       if (field.includes('.')) {
         const [parent, child] = field.split('.');
@@ -148,7 +154,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -168,7 +174,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
       await messaging.setUserProfile(updatedProfile);
       setProfile(updatedProfile);
       setSaveMessage('Profile saved successfully!');
-      
+
       if (onProfileUpdate) {
         onProfileUpdate(updatedProfile);
       }
@@ -194,7 +200,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
   return (
     <form onSubmit={handleSubmit} style={{ padding: '16px' }}>
       <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Personal Information</h3>
-      
+
       {/* Personal Info Section */}
       <div style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -222,7 +228,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
               </div>
             )}
           </div>
-          
+
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               Last Name *
@@ -343,7 +349,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
               placeholder="New York"
             />
           </div>
-          
+
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               State
@@ -385,7 +391,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
               placeholder="10001"
             />
           </div>
-          
+
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', fontWeight: '500' }}>
               Country
