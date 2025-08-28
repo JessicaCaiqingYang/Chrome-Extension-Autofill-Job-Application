@@ -44,6 +44,14 @@ export interface FieldMapping {
   value: string;
 }
 
+export interface FileUploadMapping {
+  element: HTMLInputElement;
+  fieldType: FileUploadType;
+  confidence: number;
+  acceptedTypes: string[];
+  maxSize?: number;
+}
+
 export enum FieldType {
   FIRST_NAME = 'firstName',
   LAST_NAME = 'lastName',
@@ -55,6 +63,13 @@ export enum FieldType {
   POSTCODE = 'postCode',
   COVER_LETTER = 'coverLetter',
   RESUME_TEXT = 'resumeText'
+}
+
+export enum FileUploadType {
+  CV_RESUME = 'cvResume',
+  COVER_LETTER_FILE = 'coverLetterFile',
+  PORTFOLIO = 'portfolio',
+  OTHER = 'other'
 }
 
 // Message types for inter-component communication
