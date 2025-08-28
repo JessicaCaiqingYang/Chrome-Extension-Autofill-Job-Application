@@ -3,6 +3,8 @@ import { ProfileForm } from './components/ProfileForm';
 import { CVUploader } from './components/CVUploader';
 import { AutofillToggle } from './components/AutofillToggle';
 import { StatusIndicator } from './components/StatusIndicator';
+import { NotificationContainer } from './components/NotificationContainer';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { UserProfile, CVData } from '../shared/types';
 import { 
   colors, 
@@ -214,109 +216,114 @@ function App() {
   );
 
   return (
-    <div style={containerStyle}>
-      {/* Header */}
-      <div style={headerStyle}>
-        <h1 style={titleStyle}>
-          Job Application Autofill
-        </h1>
-        
-        {/* Enhanced Tab Navigation */}
-        <nav 
-          style={tabNavigationStyle}
-          role="tablist"
-          aria-label="Extension navigation"
-        >
-          {tabs.map((tab, index) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(el) => (tabRefs.current[index] = el)}
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`tabpanel-${tab.id}`}
-                aria-label={tab.ariaLabel}
-                tabIndex={isActive ? 0 : -1}
-                className="tab-button"
-                onClick={() => setActiveTab(tab.id)}
-                onKeyDown={(e) => handleKeyDown(e, tab.id)}
-                style={getTabStyle(isActive)}
-                onMouseEnter={(e) => {
-                  Object.assign(e.currentTarget.style, getTabHoverStyle(isActive));
-                }}
-                onMouseLeave={(e) => {
-                  Object.assign(e.currentTarget.style, getTabStyle(isActive));
-                }}
-                onFocus={(e) => {
-                  Object.assign(e.currentTarget.style, {
-                    ...getTabStyle(isActive),
-                    ...getTabFocusStyle(),
-                  });
-                }}
-                onBlur={(e) => {
-                  Object.assign(e.currentTarget.style, getTabStyle(isActive));
-                }}
-              >
-                <span 
-                  style={{ 
-                    fontSize: typography.fontSize.xs,
-                    lineHeight: '1',
-                    transition: transitions.fast,
-                    flexShrink: 0,
+    <NotificationProvider>
+      <div style={containerStyle}>
+        {/* Header */}
+        <div style={headerStyle}>
+          <h1 style={titleStyle}>
+            Job Application Autofill
+          </h1>
+          
+          {/* Enhanced Tab Navigation */}
+          <nav 
+            style={tabNavigationStyle}
+            role="tablist"
+            aria-label="Extension navigation"
+          >
+            {tabs.map((tab, index) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  ref={(el) => (tabRefs.current[index] = el)}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`tabpanel-${tab.id}`}
+                  aria-label={tab.ariaLabel}
+                  tabIndex={isActive ? 0 : -1}
+                  className="tab-button"
+                  onClick={() => setActiveTab(tab.id)}
+                  onKeyDown={(e) => handleKeyDown(e, tab.id)}
+                  style={getTabStyle(isActive)}
+                  onMouseEnter={(e) => {
+                    Object.assign(e.currentTarget.style, getTabHoverStyle(isActive));
                   }}
-                  aria-hidden="true"
-                >
-                  {tab.icon}
-                </span>
-                <span 
-                  style={{ 
-                    fontSize: typography.fontSize.xs,
-                    fontWeight: 'inherit',
-                    whiteSpace: 'nowrap' as const,
-                    transition: transitions.fast,
-                    flexShrink: 0,
+                  onMouseLeave={(e) => {
+                    Object.assign(e.currentTarget.style, getTabStyle(isActive));
+                  }}
+                  onFocus={(e) => {
+                    Object.assign(e.currentTarget.style, {
+                      ...getTabStyle(isActive),
+                      ...getTabFocusStyle(),
+                    });
+                  }}
+                  onBlur={(e) => {
+                    Object.assign(e.currentTarget.style, getTabStyle(isActive));
                   }}
                 >
-                  {tab.label}
-                </span>
-                {/* Active indicator */}
-                <span
-                  style={getTabIndicatorStyle(isActive)}
-                  className={isActive ? 'tab-indicator' : ''}
-                  aria-hidden="true"
-                />
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+                  <span 
+                    style={{ 
+                      fontSize: typography.fontSize.xs,
+                      lineHeight: '1',
+                      transition: transitions.fast,
+                      flexShrink: 0,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {tab.icon}
+                  </span>
+                  <span 
+                    style={{ 
+                      fontSize: typography.fontSize.xs,
+                      fontWeight: 'inherit',
+                      whiteSpace: 'nowrap' as const,
+                      transition: transitions.fast,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {tab.label}
+                  </span>
+                  {/* Active indicator */}
+                  <span
+                    style={getTabIndicatorStyle(isActive)}
+                    className={isActive ? 'tab-indicator' : ''}
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-      {/* Tab Content */}
-      <div 
-        style={contentStyle}
-        role="tabpanel"
-        id={`tabpanel-${activeTab}`}
-        aria-labelledby={`tab-${activeTab}`}
-        className="tab-content"
-      >
-        {activeTab === 'status' && (
-          <StatusIndicator />
-        )}
-        
-        {activeTab === 'profile' && (
-          <ProfileForm onProfileUpdate={handleProfileUpdate} />
-        )}
-        
-        {activeTab === 'cv' && (
-          <CVUploader onCVUpdate={handleCVUpdate} />
-        )}
-        
-        {activeTab === 'autofill' && (
-          <AutofillToggle onToggleChange={handleToggleChange} />
-        )}
+        {/* Tab Content */}
+        <div 
+          style={contentStyle}
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+          className="tab-content"
+        >
+          {activeTab === 'status' && (
+            <StatusIndicator />
+          )}
+          
+          {activeTab === 'profile' && (
+            <ProfileForm onProfileUpdate={handleProfileUpdate} />
+          )}
+          
+          {activeTab === 'cv' && (
+            <CVUploader onCVUpdate={handleCVUpdate} />
+          )}
+          
+          {activeTab === 'autofill' && (
+            <AutofillToggle onToggleChange={handleToggleChange} />
+          )}
+        </div>
+
+        {/* Notification Container */}
+        <NotificationContainer />
       </div>
-    </div>
+    </NotificationProvider>
   );
 }
 

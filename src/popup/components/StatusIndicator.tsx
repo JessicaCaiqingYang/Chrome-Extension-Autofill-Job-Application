@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { messaging } from '../../shared/messaging';
 import { MessageType } from '../../shared/types';
+import { useNotificationHelpers } from '../hooks/useNotificationHelpers';
 
 interface StatusIndicatorProps {
   className?: string;
@@ -29,6 +30,15 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  
+  // Notification helpers
+  const {
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showAutofillSuccess
+  } = useNotificationHelpers();
 
   // Load initial status
   useEffect(() => {
@@ -130,14 +140,25 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       warnings: payload.warnings || []
     }));
     setLastUpdate(Date.now());
+    
+    // Show notification for autofill completion
+    if (payload.fieldsCount) {
+      showAutofillSuccess(payload.fieldsCount);
+    } else {
+      showSuccess('Autofill Complete', 'Form fields have been filled successfully');
+    }
   };
 
   const handleError = (payload: any) => {
+    const errorMessage = payload.error || 'Unknown error occurred';
     setStatus(prev => ({
       ...prev,
-      errors: [...prev.errors, payload.error || 'Unknown error occurred']
+      errors: [...prev.errors, errorMessage]
     }));
     setLastUpdate(Date.now());
+    
+    // Show notification for errors
+    showError('Extension Error', errorMessage);
   };
 
   const clearErrors = () => {
@@ -355,7 +376,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
 
       {/* Quick Actions */}
       {status.isReady && (
-        <div>
+        <div style={{ marginBottom: '16px' }}>
           <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Quick Actions</h4>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {!status.hasProfile && (
@@ -394,6 +415,87 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
           </div>
         </div>
       )}
+
+      {/* Notification System Demo */}
+      <div>
+        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Notification System</h4>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => showSuccess('Success!', 'This is a success notification')}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#27ae60',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              fontSize: '11px',
+              cursor: 'pointer'
+            }}
+          >
+            Success
+          </button>
+          
+          <button
+            onClick={() => showError('Error!', 'This is an error notification')}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              fontSize: '11px',
+              cursor: 'pointer'
+            }}
+          >
+            Error
+          </button>
+          
+          <button
+            onClick={() => showWarning('Warning!', 'This is a warning notification')}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#f39c12',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              fontSize: '11px',
+              cursor: 'pointer'
+            }}
+          >
+            Warning
+          </button>
+          
+          <button
+            onClick={() => showInfo('Info', 'This is an info notification')}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#3498db',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              fontSize: '11px',
+              cursor: 'pointer'
+            }}
+          >
+            Info
+          </button>
+          
+          <button
+            onClick={() => showAutofillSuccess(5)}
+            style={{
+              padding: '4px 8px',
+              backgroundColor: '#9b59b6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '3px',
+              fontSize: '11px',
+              cursor: 'pointer'
+            }}
+          >
+            Autofill Demo
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

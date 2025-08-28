@@ -95,3 +95,25 @@ export enum StorageKey {
   CV_DATA = 'cvData',
   AUTOFILL_ENABLED = 'autofillEnabled'
 }
+
+// Notification system types
+export interface NotificationItem {
+  id: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  message?: string;
+  timestamp: number;
+  autoHide: boolean;
+  duration?: number; // Duration in milliseconds for auto-hide
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export interface NotificationContextType {
+  notifications: NotificationItem[];
+  addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp'>) => string;
+  removeNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+}
