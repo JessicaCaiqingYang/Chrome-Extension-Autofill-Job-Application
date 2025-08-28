@@ -1,6 +1,65 @@
 // Chrome storage API wrapper functions
 import { UserProfile, CVData, StorageKey } from './types';
 
+// Utility functions for blob-to-base64 conversion for Chrome storage compatibility
+export const blobUtils = {
+  // Convert Blob to base64 string for storage
+  async blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to convert blob to base64'));
+      reader.readAsDataURL(blob);
+    });
+  },
+
+  // Convert base64 string back to Blob
+  base64ToBlob(base64: string, mimeType: string): Blob {
+    try {
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      return new Blob([byteArray], { type: mimeType });
+    } catch (error) {
+      throw new Error('Failed to convert base64 to blob: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  },
+
+  // Get MIME type from file extension
+  getMimeTypeFromExtension(fileName: string): string {
+    const extension = fileName.toLowerCase().split('.').pop();
+    switch (extension) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'doc':
+        return 'application/msword';
+      default:
+        return 'application/octet-stream';
+    }
+  },
+
+  // Create File object from stored CV data
+  createFileFromCVData(cvData: CVData): File {
+    const blob = this.base64ToBlob(cvData.fileBlob, cvData.mimeType);
+    return new File([blob], cvData.fileName, {
+      type: cvData.mimeType,
+      lastModified: cvData.uploadDate
+    });
+  }
+};
+
 export const storage = {
   // Get user profile from Chrome storage
   async getUserProfile(): Promise<UserProfile | null> {
@@ -36,7 +95,24 @@ export const storage = {
   async getCVData(): Promise<CVData | null> {
     try {
       const result = await chrome.storage.local.get(StorageKey.CV_DATA);
-      return result[StorageKey.CV_DATA] || null;
+      const cvData = result[StorageKey.CV_DATA];
+      
+      if (!cvData) {
+        return null;
+      }
+
+      // Check if this is legacy data without blob fields
+      if (!cvData.fileBlob || !cvData.mimeType) {
+        console.warn('Legacy CV data found without blob fields. File upload functionality will not be available until CV is re-uploaded.');
+        // Return the data as-is but with empty blob fields to maintain compatibility
+        return {
+          ...cvData,
+          fileBlob: '',
+          mimeType: blobUtils.getMimeTypeFromExtension(cvData.fileName || '')
+        };
+      }
+
+      return cvData;
     } catch (error) {
       console.error('Error getting CV data:', error);
       return null;
@@ -100,6 +176,17 @@ export const storage = {
     } catch (error) {
       console.error('Error getting storage info:', error);
       return null;
+    }
+  },
+
+  // Check if CV data has valid blob data for file uploads
+  async hasCVFileData(): Promise<boolean> {
+    try {
+      const cvData = await this.getCVData();
+      return !!(cvData && cvData.fileBlob && cvData.mimeType);
+    } catch (error) {
+      console.error('Error checking CV file data:', error);
+      return false;
     }
   }
 };

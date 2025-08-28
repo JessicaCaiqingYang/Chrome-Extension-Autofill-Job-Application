@@ -33,6 +33,8 @@ export interface CVData {
   uploadDate: number;
   extractedText: string;
   fileType: 'pdf' | 'docx';
+  fileBlob: string; // Base64 encoded blob data for Chrome storage compatibility
+  mimeType: string; // MIME type for proper file upload
 }
 
 export interface FieldMapping {

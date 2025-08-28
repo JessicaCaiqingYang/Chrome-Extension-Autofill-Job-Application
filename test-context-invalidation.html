@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Context Invalidation Handling</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .form-field {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .test-info {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .error-info {
+            background: #fff5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #e53e3e;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Context Invalidation Handling</h1>
+    
+    <div class="test-info">
+        <h3>Testing Instructions:</h3>
+        <ol>
+            <li>Load this page with the Job Application Autofill extension enabled</li>
+            <li>Open the browser console to see content script logs</li>
+            <li>Try to trigger autofill (should work normally)</li>
+            <li>Reload the extension (go to chrome://extensions/ and click reload)</li>
+            <li>Try to trigger autofill again (should handle context invalidation gracefully)</li>
+            <li>Check console for proper error handling messages</li>
+        </ol>
+    </div>
+
+    <div class="error-info">
+        <h3>Expected Behavior:</h3>
+        <p>After extension reload, you should see warning messages like:</p>
+        <ul>
+            <li>"Extension context invalidated, cannot get user profile"</li>
+            <li>"Extension context invalidated during field classification"</li>
+            <li>"Extension context invalidated, cannot notify autofill completion"</li>
+        </ul>
+        <p>The page should not crash or show unhandled errors.</p>
+    </div>
+
+    <div class="form-section">
+        <h2>Personal Information</h2>
+        
+        <div class="form-field">
+            <label for="firstName">First Name:</label>
+            <input type="text" id="firstName" name="firstName" placeholder="Enter your first name">
+        </div>
+        
+        <div class="form-field">
+            <label for="lastName">Last Name:</label>
+            <input type="text" id="lastName" name="lastName" placeholder="Enter your last name">
+        </div>
+        
+        <div class="form-field">
+            <label for="email">Email Address:</label>
+            <input type="email" id="email" name="email" placeholder="Enter your email">
+        </div>
+        
+        <div class="form-field">
+            <label for="phone">Phone Number:</label>
+            <input type="tel" id="phone" name="phone" placeholder="Enter your phone number">
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h2>Address Information</h2>
+        
+        <div class="form-field">
+            <label for="address">Street Address:</label>
+            <input type="text" id="address" name="address" placeholder="Enter your street address">
+        </div>
+        
+        <div class="form-field">
+            <label for="city">City:</label>
+            <input type="text" id="city" name="city" placeholder="Enter your city">
+        </div>
+        
+        <div class="form-field">
+            <label for="state">State/Province:</label>
+            <input type="text" id="state" name="state" placeholder="Enter your state or province">
+        </div>
+        
+        <div class="form-field">
+            <label for="zipCode">ZIP/Postal Code:</label>
+            <input type="text" id="zipCode" name="zipCode" placeholder="Enter your ZIP or postal code">
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h2>Additional Information</h2>
+        
+        <div class="form-field">
+            <label for="coverLetter">Cover Letter:</label>
+            <textarea id="coverLetter" name="coverLetter" placeholder="Tell us why you're interested in this position..."></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Add some JavaScript to help with testing
+        console.log('Test page loaded - ready for extension context invalidation testing');
+        
+        // Monitor for extension messages
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            console.log('Chrome extension APIs available');
+        } else {
+            console.log('Chrome extension APIs not available');
+        }
+        
+        // Add event listeners to form fields to help with testing
+        document.querySelectorAll('input, textarea').forEach(field => {
+            field.addEventListener('focus', () => {
+                console.log('Field focused:', field.name || field.id);
+            });
+            
+            field.addEventListener('input', () => {
+                console.log('Field value changed:', field.name || field.id, '=', field.value);
+            });
+        });
+    </script>
+</body>
+</html>

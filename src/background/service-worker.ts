@@ -190,20 +190,27 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       return { success: false, error: 'Could not extract text from the file. Please ensure the file is not corrupted.' };
     }
 
-    // Create CV data object
+    // Convert file blob to base64 for Chrome storage compatibility
+    const { blobUtils } = await import('../shared/storage');
+    const fileBlob = await blobUtils.blobToBase64(file);
+    const mimeType = file.type || blobUtils.getMimeTypeFromExtension(file.name);
+
+    // Create CV data object with blob data
     const cvData: CVData = {
       fileName: file.name,
       fileSize: file.size,
       uploadDate: Date.now(),
       extractedText: extractedText.trim(),
-      fileType
+      fileType,
+      fileBlob, // Base64 encoded blob data
+      mimeType  // MIME type for proper file upload
     };
 
     // Save to storage
     const success = await storage.setCVData(cvData);
 
     if (success) {
-      console.log('CV data saved successfully:', cvData.fileName);
+      console.log('CV data saved successfully with blob:', cvData.fileName);
       return { success: true, data: cvData };
     } else {
       return { success: false, error: 'Failed to save CV data to storage' };
