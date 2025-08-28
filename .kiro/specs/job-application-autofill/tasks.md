@@ -90,9 +90,36 @@
   - Test extension loading and functionality in Chrome
   - _Requirements: 1.1, 3.1, 7.1_
 
-- [ ] 10. Add comprehensive testing and validation
-  - Create integration tests for end-to-end autofill workflows
+- [ ] 10. Implement automatic CV file upload functionality
+- [ ] 10.1 Update CVData interface and storage to include file blob
+  - Modify CVData interface to include fileBlob and mimeType properties
+  - Update service worker CV storage functions to preserve original file data
+  - Implement blob-to-base64 conversion for Chrome storage compatibility
+  - _Requirements: 7.1, 7.4_
+
+- [ ] 10.2 Create file upload field detection system
+  - Implement detection algorithm for file input elements with CV/resume context
+  - Add analysis of accept attributes, labels, and surrounding text
+  - Create confidence scoring for file upload field identification
+  - _Requirements: 7.1, 7.2_
+
+- [ ] 10.3 Build automatic file upload functionality
+  - Implement File object creation from stored blob data
+  - Create DataTransfer-based file upload mechanism
+  - Add file validation against input accept attributes and size limits
+  - Implement upload progress monitoring and error handling
+  - _Requirements: 7.1, 7.3, 7.6, 7.7_
+
+- [ ] 10.4 Integrate file upload with existing autofill system
+  - Update content script to include file upload in autofill process
+  - Add visual feedback for successful file uploads
+  - Implement error handling and user notification for upload failures
+  - _Requirements: 7.3, 7.5, 7.7_
+
+- [ ] 11. Add comprehensive testing and validation
+  - Create integration tests for end-to-end autofill workflows including file uploads
   - Add unit tests for field detection and mapping algorithms
+  - Test file upload functionality across different job sites
   - Implement manual testing procedures for different job sites
   - Validate extension performance and memory usage
-  - _Requirements: 4.1, 4.2, 5.1, 5.2, 5.3_
+  - _Requirements: 4.1, 4.2, 5.1, 5.2, 5.3, 7.1, 7.2, 7.3_
