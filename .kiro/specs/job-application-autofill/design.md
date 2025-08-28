@@ -48,28 +48,38 @@ src/
 - `StatusIndicator`: Shows current extension status
 
 ### Content Script
-**Purpose**: Detects and fills form fields on job application pages
+**Purpose**: Detects and fills form fields on job application pages, including automatic file uploads
 
 **Key Features**:
 - Form field detection using multiple strategies
 - Intelligent field mapping based on attributes and context
-- Visual feedback for filled fields
-- Error handling for edge cases
+- File upload field detection and automatic CV upload
+- Visual feedback for filled fields and uploaded files
+- Error handling for edge cases and upload failures
 
 **Detection Strategies**:
 - HTML attribute matching (name, id, placeholder, aria-label)
 - Label text analysis
 - Field type inference
 - Context-based mapping
+- File input detection with accept attribute analysis
+
+**File Upload Implementation**:
+- File input field identification using keywords and context
+- MIME type validation against field accept attributes
+- File size validation against field constraints
+- Programmatic file upload using File API and DataTransfer
+- Upload progress monitoring and error handling
 
 ### Service Worker (Background Script)
 **Purpose**: Manages data storage, file processing, and inter-component communication
 
 **Key Features**:
 - Chrome storage API integration
-- PDF/Word document text extraction
+- PDF/Word document text extraction and blob storage
 - Message routing between components
 - State management
+- File blob conversion and MIME type handling for uploads
 
 ### Shared Utilities
 **Purpose**: Common functionality used across components
@@ -120,6 +130,8 @@ interface CVData {
   uploadDate: number;
   extractedText: string;
   fileType: 'pdf' | 'docx';
+  fileBlob: Blob; // Raw file data for upload
+  mimeType: string; // MIME type for proper upload
 }
 ```
 
@@ -130,6 +142,14 @@ interface FieldMapping {
   fieldType: FieldType;
   confidence: number;
   value: string;
+}
+
+interface FileUploadMapping {
+  element: HTMLInputElement;
+  fieldType: FileUploadType;
+  confidence: number;
+  acceptedTypes: string[];
+  maxSize?: number;
 }
 
 enum FieldType {
@@ -144,6 +164,13 @@ enum FieldType {
   COVER_LETTER = 'coverLetter',
   RESUME_TEXT = 'resumeText'
 }
+
+enum FileUploadType {
+  CV_RESUME = 'cvResume',
+  COVER_LETTER_FILE = 'coverLetterFile',
+  PORTFOLIO = 'portfolio',
+  OTHER = 'other'
+}
 ```
 
 ## Error Handling
@@ -157,11 +184,15 @@ enum FieldType {
 - Invalid file format handling
 - File size limit enforcement
 - Text extraction failure fallbacks
+- File upload validation errors (MIME type, size restrictions)
+- Upload failure handling with retry mechanisms
 
 ### Form Filling Errors
 - Element not found or not fillable
 - Security restrictions (CSP violations)
 - Dynamic form changes during filling
+- File upload security restrictions
+- File input element access denied
 
 ### Network and Permission Errors
 - Missing extension permissions
@@ -192,6 +223,25 @@ enum FieldType {
 
 ## Technical Implementation Details
 
+### File Upload Implementation Strategy
+**File Detection**:
+- Scan for `<input type="file">` elements
+- Analyze `accept` attributes for document types (.pdf, .doc, .docx, application/pdf, etc.)
+- Use label text and field names to identify CV/resume uploads
+- Context analysis of surrounding text for upload purpose identification
+
+**File Upload Process**:
+1. Create File object from stored blob data
+2. Create DataTransfer object and add file
+3. Set input.files property programmatically
+4. Trigger change and input events to notify form handlers
+5. Monitor for upload progress and completion
+
+**Validation**:
+- Check file type against input accept attribute
+- Validate file size against any specified limits
+- Ensure file format matches stored CV format
+
 ### Manifest V3 Configuration
 - Service worker instead of background pages
 - Content scripts with proper host permissions
@@ -206,7 +256,7 @@ enum FieldType {
 - Production build optimization
 
 ### Chrome APIs Usage
-- `chrome.storage.local` for user data persistence
+- `chrome.storage.local` for user data and file blob persistence
 - `chrome.runtime.sendMessage` for component communication
 - `chrome.tabs.query` for active tab detection
 - `chrome.scripting.executeScript` for content script injection
@@ -215,10 +265,12 @@ enum FieldType {
 - Content Security Policy compliance
 - Input sanitization for form data
 - Secure file processing without external services
+- File upload security validation
 - Minimal permissions principle
 
 ### Performance Optimizations
 - Lazy loading of CV processing libraries
 - Debounced form field detection
-- Efficient storage operations
+- Efficient storage operations with blob handling
 - Minimal DOM manipulation impact
+- Optimized file upload with progress tracking

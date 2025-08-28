@@ -6,10 +6,23 @@ export const messaging = {
   async sendToServiceWorker(message: Message): Promise<any> {
     return new Promise((resolve, reject) => {
       try {
+        // Check if extension context is still valid
+        if (!chrome.runtime?.id) {
+          return reject(new Error('Extension context invalidated'));
+        }
+
         chrome.runtime.sendMessage(message, (response) => {
           if (chrome.runtime.lastError) {
-            console.debug('sendToServiceWorker lastError:', chrome.runtime.lastError.message);
-            return reject(chrome.runtime.lastError);
+            const error = chrome.runtime.lastError;
+            console.debug('sendToServiceWorker lastError:', error.message);
+            
+            // Handle specific error cases
+            if (error.message?.includes('Extension context invalidated') || 
+                error.message?.includes('receiving end does not exist')) {
+              return reject(new Error('Extension context invalidated. Please refresh the page.'));
+            }
+            
+            return reject(error);
           }
           resolve(response);
         });
