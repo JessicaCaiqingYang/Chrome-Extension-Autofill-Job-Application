@@ -76,20 +76,6 @@ This feature involves building a Chrome extension using Manifest V3, React, Vite
 
 ### Requirement 7
 
-**User Story:** As a job seeker, I want the extension to automatically upload my stored CV file to file upload fields on job application websites, so that I don't have to manually browse and select my CV for each application.
-
-#### Acceptance Criteria
-
-1. WHEN autofill is enabled AND the system detects a file upload field for CV/resume THEN the system SHALL automatically upload the stored CV file
-2. WHEN a file upload field is detected THEN the system SHALL identify it as a CV/resume upload based on field attributes, labels, or context
-3. WHEN the stored CV file is uploaded THEN the system SHALL provide visual feedback indicating successful upload
-4. IF no CV is stored THEN the system SHALL skip file upload fields and optionally notify the user
-5. WHEN multiple file upload fields are present THEN the system SHALL upload the CV to fields identified as resume/CV uploads
-6. IF a file upload field has restrictions (file type, size) THEN the system SHALL validate the stored CV meets requirements before upload
-7. WHEN file upload fails THEN the system SHALL provide appropriate error feedback and continue with other autofill operations
-
-### Requirement 8
-
 **User Story:** As a job seeker, I want clear visual feedback about the extension's status and actions, so that I understand what the extension is doing.
 
 #### Acceptance Criteria

@@ -7,28 +7,10 @@ import { messaging } from '../shared/messaging';
 
 console.log('Job Application Autofill content script loaded');
 
-// Utility function to check if extension context is valid
-function isExtensionContextValid(): boolean {
-  try {
-    return !!(chrome.runtime && chrome.runtime.id);
-  } catch {
-    return false;
-  }
-}
-
 // Signal that the content script is ready
-if (isExtensionContextValid()) {
-  chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' }).catch((error) => {
-    if (error.message?.includes('Extension context invalidated') || 
-        error.message?.includes('receiving end does not exist')) {
-      console.warn('Extension context invalidated during initialization');
-    } else {
-      console.debug('Content script ready signal failed:', error);
-    }
-  });
-} else {
-  console.warn('Extension context is not valid, skipping ready signal');
-}
+chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' }).catch(() => {
+  // Ignore errors if service worker is not ready
+});
 
 class FormDetectionSystem {
   private detectedFields: HTMLElement[] = [];
@@ -40,17 +22,6 @@ class FormDetectionSystem {
     this.initializeDetection();
     this.setupMessageListener();
     this.injectStyles();
-  }
-
-  /**
-   * Check if extension context is still valid
-   */
-  private isExtensionContextValid(): boolean {
-    try {
-      return !!(chrome.runtime && chrome.runtime.id);
-    } catch {
-      return false;
-    }
   }
 
   /**
@@ -327,12 +298,6 @@ class FormDetectionSystem {
     }
 
     try {
-      // Check if extension context is valid before attempting communication
-      if (!this.isExtensionContextValid()) {
-        console.warn('Extension context invalidated, skipping field classification');
-        return;
-      }
-
       // Get user profile data from service worker
       const userProfile = await this.getUserProfile();
       if (!userProfile) {
@@ -359,13 +324,7 @@ class FormDetectionSystem {
       );
 
     } catch (error) {
-      if (error instanceof Error && 
-          (error.message?.includes('Extension context invalidated') || 
-           error.message?.includes('receiving end does not exist'))) {
-        console.warn('Extension context invalidated during field classification');
-      } else {
-        console.error('Error during field classification:', error);
-      }
+      console.error('Error during field classification:', error);
     }
   }
 
@@ -726,36 +685,14 @@ class FormDetectionSystem {
    * Get user profile from service worker
    */
   private async getUserProfile(): Promise<any> {
-    try {
-      // Check if extension context is still valid
-      if (!chrome.runtime?.id) {
-        console.warn('Extension context invalidated, cannot get user profile');
-        return null;
-      }
-
-      return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          { type: MessageType.GET_USER_PROFILE },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              const error = chrome.runtime.lastError;
-              if (error.message?.includes('Extension context invalidated') || 
-                  error.message?.includes('receiving end does not exist')) {
-                console.warn('Extension context invalidated while getting user profile');
-                resolve(null);
-                return;
-              }
-              reject(error);
-              return;
-            }
-            resolve(response?.data || null);
-          }
-        );
-      });
-    } catch (error) {
-      console.warn('Error getting user profile:', error);
-      return null;
-    }
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: MessageType.GET_USER_PROFILE },
+        (response) => {
+          resolve(response?.data || null);
+        }
+      );
+    });
   }
 
   /**
@@ -763,24 +700,12 @@ class FormDetectionSystem {
    */
   private async notifyAutofillComplete(result: any): Promise<void> {
     try {
-      // Check if extension context is still valid
-      if (!chrome.runtime?.id) {
-        console.warn('Extension context invalidated, cannot notify autofill completion');
-        return;
-      }
-
       await chrome.runtime.sendMessage({
         type: MessageType.AUTOFILL_COMPLETE,
         payload: result
       });
     } catch (error) {
-      if (error instanceof Error && 
-          (error.message?.includes('Extension context invalidated') || 
-           error.message?.includes('receiving end does not exist'))) {
-        console.warn('Extension context invalidated while notifying autofill completion');
-      } else {
-        console.error('Error notifying autofill completion:', error);
-      }
+      console.error('Error notifying autofill completion:', error);
     }
   }
 
