@@ -14,6 +14,12 @@ interface ExtensionStatus {
   autofillEnabled: boolean;
   lastActivity?: string;
   currentPage?: string;
+  pageRelevance?: {
+    isRelevant: boolean;
+    formCount: number;
+    fieldCount: number;
+    confidence: number;
+  };
   errors: string[];
   warnings: string[];
 }
@@ -69,22 +75,49 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   }, []);
 
   const loadStatus = async () => {
+    console.log('🔄 StatusIndicator: Starting loadStatus...');
     try {
       // Check if extension context is still valid
       if (!chrome.runtime?.id) {
         throw new Error('Extension context invalidated. Please reload the extension.');
       }
 
-      const [profile, cvData] = await Promise.all([
-        messaging.getUserProfile().catch((error) => {
-          console.warn('Failed to get user profile:', error);
-          return null;
-        }),
-        messaging.getCVData().catch((error) => {
-          console.warn('Failed to get CV data:', error);
-          return null;
-        })
-      ]);
+      // Test service worker connectivity
+      try {
+        console.log('🔄 StatusIndicator: Testing service worker connectivity...');
+        await Promise.race([
+          chrome.runtime.sendMessage({ type: 'PING' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Service worker ping timeout')), 2000))
+        ]);
+        console.log('🔄 StatusIndicator: Service worker is responsive');
+      } catch (error) {
+        console.warn('🔄 StatusIndicator: Service worker not responding:', error);
+        // Continue anyway, but note the issue
+      }
+
+      console.log('🔄 StatusIndicator: Fetching profile and CV data...');
+      
+      // Try to get data from service worker with timeout
+      const profilePromise = Promise.race([
+        messaging.getUserProfile(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Profile fetch timeout')), 3000))
+      ]).catch((error) => {
+        console.warn('Failed to get user profile:', error);
+        return null;
+      });
+
+      const cvDataPromise = Promise.race([
+        messaging.getCVData(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('CV data fetch timeout')), 3000))
+      ]).catch((error) => {
+        console.warn('Failed to get CV data:', error);
+        return null;
+      });
+
+      const [profile, cvData] = await Promise.all([profilePromise, cvDataPromise]);
+
+      console.log('🔄 StatusIndicator: Profile data:', profile ? 'Found' : 'Not found');
+      console.log('🔄 StatusIndicator: CV data:', cvData ? 'Found' : 'Not found');
 
       const defaultProfile = {
         personalInfo: { firstName: '', lastName: '', email: '', phone: '', address: {} },
@@ -118,17 +151,53 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
         newStatus.warnings.push('Autofill is disabled');
       }
 
-      // Check current page context
+      // Check current page context and relevance
       try {
+        console.log('🔄 StatusIndicator: Checking current page...');
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0]?.url) {
+        if (tabs[0]?.url && tabs[0]?.id) {
           const url = new URL(tabs[0].url);
           newStatus.currentPage = url.hostname;
+          console.log('🔄 StatusIndicator: Current page:', newStatus.currentPage);
+          
+          // Check page relevance by messaging the content script
+          try {
+            console.log('🔄 StatusIndicator: Checking page relevance...');
+            const relevanceResult = await chrome.tabs.sendMessage(tabs[0].id, {
+              type: MessageType.CHECK_PAGE_RELEVANCE
+            });
+            
+            console.log('🔄 StatusIndicator: Page relevance result:', relevanceResult);
+            
+            if (relevanceResult && typeof relevanceResult.isRelevant === 'boolean') {
+              newStatus.pageRelevance = {
+                isRelevant: relevanceResult.isRelevant,
+                formCount: relevanceResult.formCount || 0,
+                fieldCount: relevanceResult.fieldCount || 0,
+                confidence: relevanceResult.confidence || 0
+              };
+              
+              // Add relevance-based warnings
+              if (!relevanceResult.isRelevant && relevanceResult.fieldCount === 0) {
+                newStatus.warnings.push('No fillable forms detected on current page');
+              } else if (relevanceResult.isRelevant && relevanceResult.fieldCount > 0) {
+                // Remove the "no forms" warning if page is relevant
+                newStatus.warnings = newStatus.warnings.filter(w => 
+                  !w.includes('No fillable forms detected')
+                );
+              }
+            }
+          } catch (contentScriptError) {
+            console.debug('Could not check page relevance:', contentScriptError);
+            // Add a warning that content script communication failed
+            newStatus.warnings.push('Could not communicate with page content script');
+          }
         }
       } catch (error) {
-        // Ignore tab query errors
+        console.warn('Error checking current page:', error);
       }
 
+      console.log('🔄 StatusIndicator: Final status:', newStatus);
       setStatus(newStatus);
       setLastUpdate(Date.now());
     } catch (error) {
@@ -150,6 +219,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
         }));
       }
     } finally {
+      console.log('🔄 StatusIndicator: Setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -296,6 +366,22 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
             </div>
           )}
 
+          {status.pageRelevance && (
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ marginRight: '8px' }}>
+                {status.pageRelevance.isRelevant ? '✅' : '❌'}
+              </span>
+              <span>
+                Page relevance: {status.pageRelevance.isRelevant ? 'Job application detected' : 'Not a job application'}
+                {status.pageRelevance.fieldCount > 0 && (
+                  <span style={{ color: '#666', fontSize: '11px', marginLeft: '4px' }}>
+                    ({status.pageRelevance.fieldCount} fields, {status.pageRelevance.formCount} forms)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
           {status.lastActivity && (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{ marginRight: '8px' }}>🕒</span>
@@ -385,6 +471,19 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
         </div>
       )}
 
+      {/* Debug Information */}
+      {(isLoading || status.errors.length > 0) && (
+        <div style={{ marginBottom: '16px' }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#666' }}>Debug Info</h4>
+          <div style={{ fontSize: '11px', color: '#666', backgroundColor: '#f8f8f8', padding: '8px', borderRadius: '4px' }}>
+            <div>Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Extension ID: {chrome.runtime?.id || 'Not available'}</div>
+            <div>Last update: {new Date(lastUpdate).toLocaleString()}</div>
+            {isLoading && <div style={{ color: '#e74c3c' }}>⚠️ If stuck loading, try refreshing the extension</div>}
+          </div>
+        </div>
+      )}
+
       {/* Quick Actions */}
       {status.isReady && (
         <div>
@@ -410,17 +509,27 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
                     handleError({ error: 'Failed to trigger autofill' });
                   }
                 }}
+                disabled={status.pageRelevance && !status.pageRelevance.isRelevant && status.pageRelevance.fieldCount === 0}
                 style={{
                   padding: '4px 8px',
-                  backgroundColor: '#3498db',
+                  backgroundColor: (status.pageRelevance && !status.pageRelevance.isRelevant && status.pageRelevance.fieldCount === 0) 
+                    ? '#95a5a6' : '#3498db',
                   color: 'white',
                   border: 'none',
                   borderRadius: '3px',
                   fontSize: '11px',
-                  cursor: 'pointer'
+                  cursor: (status.pageRelevance && !status.pageRelevance.isRelevant && status.pageRelevance.fieldCount === 0) 
+                    ? 'not-allowed' : 'pointer'
                 }}
+                title={status.pageRelevance && !status.pageRelevance.isRelevant && status.pageRelevance.fieldCount === 0 
+                  ? 'No fillable forms detected on this page' : 'Fill forms on current page'}
               >
                 Fill Current Page
+                {status.pageRelevance && status.pageRelevance.fieldCount > 0 && (
+                  <span style={{ marginLeft: '4px', fontSize: '10px' }}>
+                    ({status.pageRelevance.fieldCount})
+                  </span>
+                )}
               </button>
             )}
           </div>
