@@ -318,43 +318,111 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       return { success: false, error: 'No file data provided' };
     }
 
-    // Reconstruct File object from serialized data
-    const file = new File([fileData.arrayBuffer], fileData.name, {
-      type: fileData.type,
-      lastModified: fileData.lastModified
-    });
+    // Normalize incoming fileData:
+    // Accept:
+    // - a File / Blob (sent from popup mistakenly)
+    // - an object: { name, type, lastModified, size, arrayBuffer } where arrayBuffer is ArrayBuffer or Uint8Array or base64 string
+    let file: File | null = null;
+    let inferredName = fileData.name || 'uploaded_cv';
+    let inferredType = fileData.type || 'application/octet-stream';
+    let inferredLastModified = fileData.lastModified || Date.now();
+    let inferredSize = fileData.size;
+
+    if (fileData instanceof File || fileData instanceof Blob) {
+      // If popup accidentally sent a File/Blob, use it directly (but DO NOT store it raw)
+      const blob = fileData as Blob;
+      inferredSize = blob.size;
+      inferredType = blob.type || inferredType;
+      // convert blob -> File so we have name & lastModified metadata (if available)
+      try {
+        file = new File([blob], inferredName, { type: inferredType, lastModified: inferredLastModified });
+      } catch (e) {
+        // Some environments may not allow File constructor; fallback to Blob
+        file = new File([blob], inferredName, { type: inferredType, lastModified: inferredLastModified });
+      }
+    } else if (typeof fileData === 'object' && fileData.arrayBuffer !== undefined) {
+      // Accept ArrayBuffer, SharedArrayBuffer, TypedArray, or base64 string.
+      let abLike: ArrayBufferLike | null = null;
+      const arrival = fileData.arrayBuffer;
+
+      if (arrival instanceof ArrayBuffer) {
+        abLike = arrival;
+      } else if (ArrayBuffer.isView(arrival) && (arrival as ArrayBufferView).buffer) {
+        // TypedArray (Uint8Array, etc.)
+        abLike = (arrival as ArrayBufferView).buffer;
+      } else if (typeof arrival === 'object' && arrival && 'buffer' in arrival) {
+        // e.g. { buffer: SharedArrayBuffer } or similar wrappers
+        abLike = (arrival as any).buffer;
+      } else if (typeof arrival === 'string') {
+        // base64 -> ArrayBuffer
+        try {
+          const binary = atob(arrival);
+          const len = binary.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+          abLike = bytes.buffer;
+        } catch (err) {
+          console.warn('Could not decode base64 arrayBuffer in fileData');
+        }
+      }
+
+      if (!abLike) {
+        return { success: false, error: 'fileData.arrayBuffer not in a supported format' };
+      }
+
+      inferredName = fileData.name || inferredName;
+      inferredType = fileData.type || inferredType;
+      inferredLastModified = fileData.lastModified || inferredLastModified;
+      // use (abLike as any).byteLength to support SharedArrayBuffer in TS
+      inferredSize = fileData.size ?? (abLike as any).byteLength;
+
+      // Create a Uint8Array view. Cast to BlobPart to satisfy TS Blob/File constructor types.
+      const blobView = new Uint8Array(abLike as any);
+      const blobPart = blobView as unknown as BlobPart;
+      try {
+        file = new File([blobPart], inferredName, { type: inferredType, lastModified: inferredLastModified });
+      } catch (e) {
+        const blob = new Blob([blobPart], { type: inferredType });
+        file = new File([blob], inferredName, { type: inferredType, lastModified: inferredLastModified });
+      }
+    } else {
+      return { success: false, error: 'Unsupported fileData format' };
+    }
+
+    // At this point we have a File object (local only) and inferredSize
+    const fileSize = inferredSize ?? (file ? file.size : 0);
 
     // Validate file type
-    const fileType = getFileType(file.name);
+    const fileType = getFileType(inferredName);
     if (!fileType) {
       return { success: false, error: 'Unsupported file type. Please upload PDF or Word documents.' };
     }
 
     // Validate file size (5MB limit)
     const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
+    if (fileSize > maxSize) {
       return { success: false, error: 'File size too large. Please upload files smaller than 5MB.' };
     }
 
-    console.log('Processing CV file:', file.name, 'Type:', fileType, 'Size:', file.size);
+    console.log('Processing CV file:', inferredName, 'Type:', fileType, 'Size:', fileSize);
 
     // Extract text from file (placeholder implementation)
-    const extractedText = await extractTextFromFile(file, fileType);
+    const extractedText = await extractTextFromFile(file as File, fileType);
 
     if (!extractedText || extractedText.trim().length === 0) {
       return { success: false, error: 'Could not extract text from the file. Please ensure the file is not corrupted.' };
     }
 
-    // Create CV data object
+    // Create CV data object (only plain serializable fields; do NOT include binary buffers)
     const cvData: CVData = {
-      fileName: file.name,
-      fileSize: file.size,
+      fileName: inferredName,
+      fileSize,
       uploadDate: Date.now(),
       extractedText: extractedText.trim(),
       fileType
     };
 
-    // Save to storage
+    // Save to storage (only metadata/text)
     const success = await storage.setCVData(cvData);
 
     if (success) {
@@ -363,7 +431,6 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
     } else {
       return { success: false, error: 'Failed to save CV data to storage' };
     }
-
   } catch (error) {
     console.error('Error processing CV file:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to process CV file';

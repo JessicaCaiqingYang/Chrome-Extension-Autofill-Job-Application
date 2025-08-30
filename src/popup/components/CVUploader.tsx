@@ -27,9 +27,22 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
   const loadCVData = async () => {
     setIsLoading(true);
     try {
-      const existingCV = await messaging.getCVData();
+      const response = await messaging.getCVData();
+      console.log('CVUploader: Loaded CV data response:', response);
+      
+      // Handle the response structure: {success: true, data: {...}}
+      const existingCV = response && response.success ? response.data : response;
+      
       if (existingCV) {
         setCvData(existingCV);
+        console.log('CVUploader: CV data set successfully:', {
+          fileName: existingCV.fileName,
+          fileSize: existingCV.fileSize,
+          hasFileBlob: !!existingCV.fileBlob,
+          blobLength: existingCV.fileBlob ? existingCV.fileBlob.length : 0
+        });
+      } else {
+        console.log('CVUploader: No CV data found');
       }
     } catch (error) {
       console.error('Error loading CV data:', error);
@@ -118,12 +131,27 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       await simulateProgress();
 
       // Upload file through messaging
+      console.log('CVUploader: Starting CV upload for file:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
       const result = await messaging.setCVData(file);
+      
+      console.log('CVUploader: Upload result:', result);
       
       setUploadProgress(100);
 
       if (result && result.success && result.data) {
         setCvData(result.data);
+        console.log('CVUploader: CV upload successful, data saved:', {
+          fileName: result.data.fileName,
+          fileSize: result.data.fileSize,
+          hasFileBlob: !!result.data.fileBlob,
+          blobLength: result.data.fileBlob ? result.data.fileBlob.length : 0
+        });
+        
         setSuccessMessage(`CV uploaded successfully! ${result.data.extractedText ? 'Text extracted.' : 'Processing...'}`);
         
         if (onCVUpdate) {
@@ -133,6 +161,7 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
         // Clear success message after 3 seconds
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {
+        console.error('CVUploader: Upload failed:', result?.error);
         throw new Error(result?.error || 'Upload failed');
       }
     } catch (error) {

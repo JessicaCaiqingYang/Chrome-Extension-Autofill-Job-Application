@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { messaging } from '../../shared/messaging';
+import { CVData } from '../../shared/types';
 
 interface AutofillToggleProps {
   onToggleChange?: (enabled: boolean) => void;
@@ -10,10 +11,12 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [cvData, setCvData] = useState<CVData | null>(null);
 
   // Load current autofill status on component mount
   useEffect(() => {
     loadAutofillStatus();
+    loadCVData();
   }, []);
 
   const loadAutofillStatus = async () => {
@@ -35,6 +38,15 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
       setIsEnabled(true);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadCVData = async () => {
+    try {
+      const cvData = await messaging.getCVData();
+      setCvData(cvData);
+    } catch (error) {
+      console.error('Error loading CV data:', error);
     }
   };
 
@@ -129,6 +141,21 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
               : 'Extension will not fill forms automatically'
             }
           </div>
+
+          {/* CV Upload Status */}
+          {isEnabled && (
+            <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+              {cvData ? (
+                <span style={{ color: '#27ae60' }}>
+                  📄 CV auto-upload enabled ({cvData.fileName})
+                </span>
+              ) : (
+                <span style={{ color: '#e67e22' }}>
+                  ⚠ CV auto-upload disabled (no CV uploaded)
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Toggle Switch */}
@@ -196,6 +223,7 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
         <ul style={{ margin: '0', paddingLeft: '16px' }}>
           <li>When enabled, the extension scans job application pages</li>
           <li>Automatically fills detected form fields with your profile data</li>
+          <li>Automatically uploads your CV to "upload resume" or "upload cv" fields</li>
           <li>Works across different job sites and application forms</li>
           <li>You can toggle this on/off anytime</li>
         </ul>
@@ -228,10 +256,17 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
                 const result = await messaging.triggerAutofill();
                 if (result && result.success) {
                   setError('');
-                  // Show success feedback briefly
-                  const successMsg = `Autofill completed! Filled ${result.data?.filled || 0} fields.`;
+                  // Show success feedback briefly with CV upload info
+                  const filledFields = result.data?.filled || 0;
+                  const fileUploads = result.data?.fileUploadsCompleted || 0;
+                  let successMsg = `Autofill completed! Filled ${filledFields} fields.`;
+                  
+                  if (fileUploads > 0) {
+                    successMsg += ` Uploaded CV to ${fileUploads} file field${fileUploads > 1 ? 's' : ''}.`;
+                  }
+                  
                   setError(successMsg);
-                  setTimeout(() => setError(''), 3000);
+                  setTimeout(() => setError(''), 4000);
                 } else {
                   throw new Error(result?.error || 'Autofill failed');
                 }
@@ -267,10 +302,10 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
               cursor: isUpdating ? 'not-allowed' : 'pointer'
             }}
           >
-  {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
+            {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
           </button>
           <div style={{ fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '4px' }}>
-            Fills forms on the active web page tab
+            Fills forms and uploads CV on the active web page tab
           </div>
         </div>
       )}

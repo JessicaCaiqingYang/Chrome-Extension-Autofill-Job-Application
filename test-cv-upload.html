@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Auto-Upload Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #fafafa;
+        }
+        .form-section h3 {
+            margin-top: 0;
+            color: #555;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="email"], input[type="tel"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #3498db;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        input[type="file"]:hover {
+            background-color: #e3f2fd;
+            border-color: #2980b9;
+        }
+        .file-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .submit-btn {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .submit-btn:hover {
+            background-color: #2980b9;
+        }
+        .instructions {
+            background-color: #e8f4fd;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .instructions h4 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+        .instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 CV Auto-Upload Test Page</h1>
+        
+        <div class="instructions">
+            <h4>🧪 Testing Instructions:</h4>
+            <ul>
+                <li>Upload a CV in the CV Uploader component in the extension popup</li>
+                <li>Click "Fill Current Page" in the extension popup</li>
+                <li>The extension should automatically upload your CV to the file fields below</li>
+                <li>Watch for visual feedback (green borders) on successful uploads</li>
+                <li>Check the browser console for detailed upload logs</li>
+            </ul>
+        </div>
+
+        <form id="jobApplicationForm">
+            <!-- Personal Information Section -->
+            <div class="form-section">
+                <h3>👤 Personal Information</h3>
+                
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" name="firstName" placeholder="Enter your first name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" name="lastName" placeholder="Enter your last name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email address">
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" placeholder="Enter your phone number">
+                </div>
+            </div>
+
+            <!-- Resume/CV Upload Section -->
+            <div class="form-section">
+                <h3>📄 Resume/CV Upload</h3>
+                
+                <div class="form-group">
+                    <label for="uploadResume">Upload Resume</label>
+                    <input type="file" id="uploadResume" name="uploadResume" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 10MB)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="uploadCV">Upload CV</label>
+                    <input type="file" id="uploadCV" name="uploadCV" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 10MB)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="resumeFile">Resume File</label>
+                    <input type="file" id="resumeFile" name="resumeFile" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 10MB)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cvFile">CV File</label>
+                    <input type="file" id="cvFile" name="cvFile" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 10MB)</div>
+                </div>
+            </div>
+
+            <!-- Additional Documents Section -->
+            <div class="form-section">
+                <h3>📎 Additional Documents</h3>
+                
+                <div class="form-group">
+                    <label for="coverLetter">Upload Cover Letter</label>
+                    <input type="file" id="coverLetter" name="coverLetter" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 5MB)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="portfolio">Upload Portfolio</label>
+                    <input type="file" id="portfolio" name="portfolio" accept=".pdf,.doc,.docx,.zip">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX, ZIP (Max 20MB)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="additionalDocs">Additional Documents</label>
+                    <input type="file" id="additionalDocs" name="additionalDocs" accept=".pdf,.doc,.docx">
+                    <div class="file-info">Accepted formats: PDF, DOC, DOCX (Max 10MB)</div>
+                </div>
+            </div>
+
+            <!-- Experience Section -->
+            <div class="form-section">
+                <h3>💼 Experience & Skills</h3>
+                
+                <div class="form-group">
+                    <label for="experience">Work Experience</label>
+                    <textarea id="experience" name="experience" rows="4" placeholder="Describe your work experience..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="skills">Skills</label>
+                    <textarea id="skills" name="skills" rows="3" placeholder="List your key skills..."></textarea>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-section">
+                <button type="submit" class="submit-btn">Submit Application</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Add some interactivity to show when files are selected
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileInfo = e.target.nextElementSibling;
+                    fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    fileInfo.style.color = '#27ae60';
+                    fileInfo.style.fontWeight = 'bold';
+                }
+            });
+        });
+
+        // Prevent form submission for testing
+        document.getElementById('jobApplicationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('This is a test page. Form submission is disabled.');
+        });
+
+        // Log when the page loads
+        console.log('CV Auto-Upload Test Page loaded');
+        console.log('File upload fields detected:', document.querySelectorAll('input[type="file"]').length);
+    </script>
+
+    <!-- Debug Script -->
+    <script src="debug-cv-upload.js"></script>
+</body>
+</html> 

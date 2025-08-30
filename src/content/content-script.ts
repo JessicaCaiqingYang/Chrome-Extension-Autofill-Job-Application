@@ -2,8 +2,9 @@
 // This will handle form detection and filling on job application pages
 
 import { fieldMapping } from '../shared/fieldMapping';
-import { FieldType, FieldMapping, MessageType, Message } from '../shared/types';
+import { FieldType, FieldMapping, FileUploadMapping, FileUploadType, MessageType, Message } from '../shared/types';
 import { messaging } from '../shared/messaging';
+import { blobUtils } from '../shared/storage';
 
 console.log('Job Application Autofill content script loaded');
 
@@ -33,6 +34,8 @@ if (isExtensionContextValid()) {
 class FormDetectionSystem {
   private detectedFields: HTMLElement[] = [];
   private fieldMappings: FieldMapping[] = [];
+  private fileUploadFields: HTMLInputElement[] = [];
+  private fileUploadMappings: FileUploadMapping[] = [];
   private observer: MutationObserver | null = null;
   private isScanning = false;
 
@@ -107,7 +110,10 @@ class FormDetectionSystem {
       // Classify field types
       await this.classifyFieldTypes();
 
-      console.log(`Detected ${this.detectedFields.length} fillable form fields`);
+      // Detect and classify file upload fields
+      await this.detectAndClassifyFileUploadFields();
+
+      console.log(`Detected ${this.detectedFields.length} fillable form fields and ${this.fileUploadFields.length} file upload fields`);
 
       return this.detectedFields;
     } finally {
@@ -669,6 +675,70 @@ class FormDetectionSystem {
   }
 
   /**
+   * Detect and classify file upload fields
+   */
+  private async detectAndClassifyFileUploadFields(): Promise<void> {
+    try {
+      // Detect file upload fields
+      this.fileUploadFields = fieldMapping.detectFileUploadFields();
+      
+      if (this.fileUploadFields.length === 0) {
+        console.log('No file upload fields detected');
+        return;
+      }
+
+      console.log(`Raw file upload fields detected:`, this.fileUploadFields.map(f => ({
+        id: f.id,
+        name: f.name,
+        className: f.className,
+        accept: f.accept
+      })));
+
+      // Map file upload fields to upload types
+      this.fileUploadMappings = fieldMapping.mapFileUploadFields(this.fileUploadFields);
+      
+      // Enhanced logging for debugging
+      console.log(`Mapped ${this.fileUploadMappings.length} file upload fields`);
+      
+      this.fileUploadMappings.forEach((mapping, index) => {
+        const element = mapping.element;
+        const identifiers = fieldMapping.getFieldIdentifiers(element);
+        console.log(`File upload field ${index + 1}:`, {
+          type: mapping.fieldType,
+          confidence: mapping.confidence,
+          acceptedTypes: mapping.acceptedTypes,
+          maxSize: mapping.maxSize,
+          identifiers: identifiers,
+          element: {
+            id: element.id,
+            name: element.name,
+            className: element.className,
+            placeholder: element.placeholder,
+            accept: element.accept
+          }
+        });
+      });
+
+      // Log CV/resume specific fields
+      const cvResumeFields = this.fileUploadMappings.filter(m => m.fieldType === FileUploadType.CV_RESUME);
+      if (cvResumeFields.length > 0) {
+        console.log(`Found ${cvResumeFields.length} CV/Resume upload fields:`, 
+          cvResumeFields.map(f => ({ 
+            confidence: f.confidence, 
+            identifiers: fieldMapping.getFieldIdentifiers(f.element),
+            element: { id: f.element.id, name: f.element.name }
+          }))
+        );
+      } else {
+        console.warn('No CV/Resume upload fields detected!');
+      }
+
+    } catch (error) {
+      console.error('Error during file upload field detection:', error);
+    }
+  }
+
+  /**
    * Apply fallback strategies for fields that couldn't be mapped with high confidence
    */
   private applyFallbackStrategies(): void {
@@ -956,14 +1026,26 @@ class FormDetectionSystem {
       // Fill the fields
       const fillResult = await this.fillDetectedFields();
 
-      // Show completion feedback
-      this.showAutofillCompletionFeedback(fillResult);
+      // Upload files to detected file upload fields
+      const uploadResult = await this.uploadFilesToDetectedFields();
+
+      // Combine results
+      const combinedResult = {
+        filled: fillResult.filled + uploadResult.uploaded,
+        errors: [...fillResult.errors, ...uploadResult.errors],
+        fileUploads: uploadResult.uploaded
+      };
+
+      // Show completion feedback with file upload information
+      this.showAutofillCompletionFeedback(combinedResult);
 
       const result = {
         success: true,
-        filled: fillResult.filled,
-        errors: fillResult.errors,
-        fieldsDetected: this.detectedFields.length
+        filled: combinedResult.filled,
+        errors: combinedResult.errors,
+        fieldsDetected: this.detectedFields.length,
+        fileUploadsDetected: this.fileUploadFields.length,
+        fileUploadsCompleted: uploadResult.uploaded
       };
 
       // Notify service worker of completion
@@ -1159,9 +1241,321 @@ class FormDetectionSystem {
   }
 
   /**
+   * Upload files to detected file upload fields
+   */
+  private async uploadFilesToDetectedFields(): Promise<{ uploaded: number; errors: string[] }> {
+    let uploaded = 0;
+    const errors: string[] = [];
+
+    // Process file upload fields with reasonable confidence, prioritizing CV/resume fields
+    const highConfidenceUploads = this.fileUploadMappings.filter(mapping => mapping.confidence > 0.3);
+    
+    // Sort by confidence and prioritize CV/resume fields
+    highConfidenceUploads.sort((a, b) => {
+      // CV/resume fields get priority
+      if (a.fieldType === FileUploadType.CV_RESUME && b.fieldType !== FileUploadType.CV_RESUME) {
+        return -1;
+      }
+      if (b.fieldType === FileUploadType.CV_RESUME && a.fieldType !== FileUploadType.CV_RESUME) {
+        return 1;
+      }
+      // Then sort by confidence
+      return b.confidence - a.confidence;
+    });
+
+    if (highConfidenceUploads.length === 0) {
+      console.log('No high-confidence file upload fields found');
+      return { uploaded, errors };
+    }
+
+    // Get CV data from service worker
+    const cvData = await this.getCVData();
+    if (!cvData) {
+      console.log('No CV data available for file upload');
+      return { uploaded, errors };
+    }
+
+    console.log(`Attempting to upload CV to ${highConfidenceUploads.length} file upload fields`);
+    console.log('CV data:', {
+      fileName: cvData.fileName,
+      fileSize: cvData.fileSize,
+      mimeType: cvData.mimeType
+    });
+
+    for (const mapping of highConfidenceUploads) {
+      try {
+        console.log(`Processing upload field: ${mapping.fieldType} (confidence: ${mapping.confidence})`);
+        
+        // Check if the file upload field is compatible with our CV
+        const isCompatible = fieldMapping.isFileUploadCompatibleWithCV(mapping, {
+          mimeType: cvData.mimeType,
+          fileSize: cvData.fileSize
+        });
+
+        if (!isCompatible) {
+          const errorMsg = this.getFileUploadCompatibilityError(mapping, cvData);
+          console.warn(`File upload compatibility check failed: ${errorMsg}`);
+          errors.push(errorMsg);
+          this.addFileUploadVisualFeedback(mapping.element, 'error');
+          this.showFileUploadError(mapping.element, errorMsg);
+          continue;
+        }
+
+        console.log(`File upload compatibility check passed for ${mapping.fieldType}`);
+        const success = await this.uploadFileToField(mapping, cvData);
+        
+        if (success) {
+          uploaded++;
+          console.log(`Successfully uploaded CV to ${mapping.fieldType} field`);
+          this.addFileUploadVisualFeedback(mapping.element, 'success');
+        } else {
+          const errorMsg = `Failed to upload CV to ${mapping.fieldType} field`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+          this.addFileUploadVisualFeedback(mapping.element, 'error');
+          this.showFileUploadError(mapping.element, errorMsg);
+        }
+      } catch (error) {
+        const errorMessage = `Error uploading to ${mapping.fieldType}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(errorMessage);
+        errors.push(errorMessage);
+        this.addFileUploadVisualFeedback(mapping.element, 'error');
+        this.showFileUploadError(mapping.element, errorMessage);
+      }
+
+      // Small delay between uploads to avoid overwhelming the page
+      await this.delay(100);
+    }
+
+    console.log(`File upload process completed: ${uploaded} successful, ${errors.length} errors`);
+    return { uploaded, errors };
+  }
+
+  /**
+   * Upload a file to a specific file input field
+   */
+  private async uploadFileToField(mapping: FileUploadMapping, cvData: any): Promise<boolean> {
+    const { element } = mapping;
+
+    try {
+      console.log(`Uploading CV to ${mapping.fieldType} field:`, {
+        element: {
+          id: element.id,
+          name: element.name,
+          className: element.className,
+          accept: element.accept
+        },
+        mapping: {
+          fieldType: mapping.fieldType,
+          confidence: mapping.confidence,
+          acceptedTypes: mapping.acceptedTypes,
+          maxSize: mapping.maxSize
+        }
+      });
+
+      // Convert base64 blob back to File object
+      const file = await this.createFileFromCVData(cvData);
+      if (!file) {
+        console.error('Failed to create File object from CV data');
+        return false;
+      }
+
+      console.log('File object created successfully:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
+
+      // Validate file against field constraints
+      if (!this.validateFileForUpload(file, mapping)) {
+        console.error('File validation failed for upload field');
+        return false;
+      }
+
+      console.log('File validation passed, proceeding with upload');
+
+      // Perform the file upload
+      const success = await this.performFileUpload(element, file, mapping.fieldType);
+      
+      if (success) {
+        console.log(`Successfully uploaded CV to ${mapping.fieldType} field`);
+        return true;
+      } else {
+        console.error(`Failed to upload CV to ${mapping.fieldType} field`);
+        return false;
+      }
+
+    } catch (error) {
+      console.error(`Error uploading file to ${mapping.fieldType}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Create a File object from stored CV data
+   */
+  private async createFileFromCVData(cvData: any): Promise<File | null> {
+    try {
+      // Use the existing blobUtils from storage module
+      const blob = blobUtils.base64ToBlob(cvData.fileBlob, cvData.mimeType);
+      
+      // Create File object
+      const file = new File([blob], cvData.fileName, {
+        type: cvData.mimeType,
+        lastModified: cvData.uploadDate
+      });
+
+      console.log('Created File object from CV data:', {
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type
+      });
+
+      return file;
+    } catch (error) {
+      console.error('Error creating File object from CV data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Validate file against upload field constraints
+   */
+  private validateFileForUpload(file: File, mapping: FileUploadMapping): boolean {
+    // Check file type if accept attribute is present
+    if (mapping.acceptedTypes && mapping.acceptedTypes.length > 0) {
+      const isTypeAccepted = mapping.acceptedTypes.some((acceptType: string) => {
+        // Handle MIME types
+        if (acceptType.includes('/')) {
+          return file.type === acceptType;
+        }
+        
+        // Handle file extensions
+        if (acceptType.startsWith('.')) {
+          const extension = acceptType.toLowerCase();
+          const fileName = file.name.toLowerCase();
+          return fileName.endsWith(extension);
+        }
+        
+        return false;
+      });
+
+      if (!isTypeAccepted) {
+        console.warn('File type not accepted by upload field:', file.type, 'Accepted:', mapping.acceptedTypes);
+        return false;
+      }
+    }
+
+    // Check file size if max size is specified
+    if (mapping.maxSize && file.size > mapping.maxSize) {
+      console.warn('File size exceeds maximum allowed:', file.size, 'Max:', mapping.maxSize);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Perform the actual file upload to the input element
+   */
+  private async performFileUpload(element: HTMLInputElement, file: File, fieldType?: string): Promise<boolean> {
+    try {
+      // Focus the file input element
+      element.focus();
+
+      // Create a DataTransfer object to hold the file
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+
+      // Set the files property of the input element
+      element.files = dataTransfer.files;
+
+      // Trigger events to notify the page of the file selection
+      this.triggerFileUploadEvents(element);
+
+      // Verify the upload was successful
+      if (element.files && element.files.length > 0 && element.files[0].name === file.name) {
+        const fieldTypeStr = fieldType ? ` to ${fieldType} field` : '';
+        console.log(`File upload successful: ${file.name} (${(file.size / 1024).toFixed(1)}KB)${fieldTypeStr}`);
+        return true;
+      } else {
+        console.error('File upload verification failed - files property not set correctly');
+        return false;
+      }
+
+    } catch (error) {
+      console.error('Error performing file upload:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Trigger appropriate events for file upload
+   */
+  private triggerFileUploadEvents(element: HTMLInputElement): void {
+    const events = [
+      new Event('change', { bubbles: true, cancelable: true }),
+      new Event('input', { bubbles: true, cancelable: true }),
+      new Event('blur', { bubbles: true, cancelable: true })
+    ];
+
+    events.forEach(event => {
+      try {
+        element.dispatchEvent(event);
+      } catch (error) {
+        console.warn('Failed to dispatch file upload event:', event.type, error);
+      }
+    });
+
+    // Also trigger focus event to ensure proper handling
+    try {
+      element.dispatchEvent(new Event('focus', { bubbles: true, cancelable: true }));
+    } catch (error) {
+      console.warn('Failed to dispatch focus event:', error);
+    }
+  }
+
+  /**
+   * Get CV data from service worker
+   */
+  private async getCVData(): Promise<any> {
+    try {
+      // Check if extension context is still valid
+      if (!chrome.runtime?.id) {
+        console.warn('Extension context invalidated, cannot get CV data');
+        return null;
+      }
+
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { type: MessageType.GET_CV_DATA },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              const error = chrome.runtime.lastError;
+              if (error.message?.includes('Extension context invalidated') || 
+                  error.message?.includes('receiving end does not exist')) {
+                console.warn('Extension context invalidated while getting CV data');
+                resolve(null);
+                return;
+              }
+              reject(error);
+              return;
+            }
+            resolve(response?.data || null);
+          }
+        );
+      });
+    } catch (error) {
+      console.warn('Error getting CV data:', error);
+      return null;
+    }
+  }
+
+  /**
    * Show completion feedback for the entire autofill operation
    */
-  private showAutofillCompletionFeedback(result: { filled: number; errors: string[] }): void {
+  private showAutofillCompletionFeedback(result: { filled: number; errors: string[]; fileUploads?: number }): void {
     // Create a temporary notification element
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -1176,12 +1570,33 @@ class FormDetectionSystem {
       font-size: 14px;
       z-index: 10000;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      max-width: 300px;
+      max-width: 350px;
+      line-height: 1.4;
     `;
 
-    const message = result.errors.length === 0
-      ? `✓ Successfully filled ${result.filled} fields`
-      : `⚠ Filled ${result.filled} fields with ${result.errors.length} errors`;
+    // Create detailed message including file uploads
+    let message = '';
+    const totalActions = result.filled;
+    const fileUploads = result.fileUploads || 0;
+    const fieldFills = totalActions - fileUploads;
+
+    if (result.errors.length === 0) {
+      if (fileUploads > 0 && fieldFills > 0) {
+        message = `✓ Autofill complete: ${fieldFills} fields filled, ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
+      } else if (fileUploads > 0) {
+        message = `✓ File upload complete: ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
+      } else if (fieldFills > 0) {
+        message = `✓ Autofill complete: ${fieldFills} fields filled`;
+      } else {
+        message = '✓ Autofill completed (no actions needed)';
+      }
+    } else {
+      if (fileUploads > 0 && fieldFills > 0) {
+        message = `⚠ Autofill completed with ${result.errors.length} error${result.errors.length > 1 ? 's' : ''}: ${fieldFills} fields filled, ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
+      } else {
+        message = `⚠ Autofill completed: ${totalActions} action${totalActions > 1 ? 's' : ''} with ${result.errors.length} error${result.errors.length > 1 ? 's' : ''}`;
+      }
+    }
 
     notification.textContent = message;
     document.body.appendChild(notification);
@@ -1191,13 +1606,182 @@ class FormDetectionSystem {
       if (notification.parentNode) {
         notification.parentNode.removeChild(notification);
       }
-    }, 4000);
+    }, 5000); // Slightly longer display time for more detailed message
 
     // Log detailed results
-    console.log('Autofill completed:', result);
+    console.log('Autofill completed:', {
+      ...result,
+      fieldFills,
+      fileUploads,
+      totalActions
+    });
     if (result.errors.length > 0) {
       console.warn('Autofill errors:', result.errors);
     }
+  }
+
+  /**
+   * Add specialized visual feedback for file upload operations
+   */
+  private addFileUploadVisualFeedback(element: HTMLElement, status: 'success' | 'error'): void {
+    // Remove any existing feedback classes
+    element.classList.remove('autofill-success', 'autofill-error', 'file-upload-success', 'file-upload-error');
+
+    // Add appropriate class for file uploads
+    const className = status === 'success' ? 'file-upload-success' : 'file-upload-error';
+    element.classList.add(className);
+
+    // Add inline styles for immediate visual feedback with file upload specific styling
+    const originalStyle = {
+      backgroundColor: element.style.backgroundColor,
+      border: element.style.border,
+      boxShadow: element.style.boxShadow
+    };
+
+    if (status === 'success') {
+      element.style.backgroundColor = '#e8f5e8';
+      element.style.border = '3px solid #4caf50';
+      element.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+      
+      // Add success icon overlay for file uploads
+      this.addFileUploadIcon(element, '✓', '#4caf50');
+    } else {
+      element.style.backgroundColor = '#ffeaea';
+      element.style.border = '3px solid #f44336';
+      element.style.boxShadow = '0 0 10px rgba(244, 67, 54, 0.5)';
+      
+      // Add error icon overlay for file uploads
+      this.addFileUploadIcon(element, '✗', '#f44336');
+    }
+
+    // Remove visual feedback after delay
+    setTimeout(() => {
+      element.classList.remove(className);
+      element.style.backgroundColor = originalStyle.backgroundColor;
+      element.style.border = originalStyle.border;
+      element.style.boxShadow = originalStyle.boxShadow;
+      
+      // Remove icon overlay
+      const icon = element.parentElement?.querySelector('.file-upload-icon');
+      if (icon) {
+        icon.remove();
+      }
+    }, 4000);
+  }
+
+  /**
+   * Add icon overlay for file upload feedback
+   */
+  private addFileUploadIcon(element: HTMLElement, icon: string, color: string): void {
+    const iconElement = document.createElement('div');
+    iconElement.className = 'file-upload-icon';
+    iconElement.style.cssText = `
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      background: ${color};
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    `;
+    iconElement.textContent = icon;
+
+    // Position relative to the file input
+    const parent = element.parentElement;
+    if (parent) {
+      const originalPosition = parent.style.position;
+      if (!originalPosition || originalPosition === 'static') {
+        parent.style.position = 'relative';
+      }
+      parent.appendChild(iconElement);
+    }
+  }
+
+  /**
+   * Get detailed error message for file upload compatibility issues
+   */
+  private getFileUploadCompatibilityError(mapping: FileUploadMapping, cvData: any): string {
+    // Check file type compatibility
+    if (mapping.acceptedTypes.length > 0) {
+      const isTypeAccepted = mapping.acceptedTypes.some(acceptType => {
+        if (acceptType.includes('/')) {
+          return cvData.mimeType === acceptType;
+        }
+        if (acceptType.startsWith('.')) {
+          const extension = acceptType.toLowerCase();
+          return (
+            (extension === '.pdf' && cvData.mimeType === 'application/pdf') ||
+            (extension === '.doc' && cvData.mimeType === 'application/msword') ||
+            (extension === '.docx' && cvData.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+          );
+        }
+        return false;
+      });
+
+      if (!isTypeAccepted) {
+        const fileExtension = cvData.fileName.split('.').pop()?.toLowerCase() || 'unknown';
+        const acceptedExtensions = mapping.acceptedTypes
+          .filter(type => type.startsWith('.'))
+          .join(', ') || mapping.acceptedTypes.join(', ');
+        return `CV file type (.${fileExtension}) not accepted. Accepted types: ${acceptedExtensions}`;
+      }
+    }
+
+    // Check file size compatibility
+    if (mapping.maxSize && cvData.fileSize > mapping.maxSize) {
+      const maxSizeMB = (mapping.maxSize / (1024 * 1024)).toFixed(1);
+      const fileSizeMB = (cvData.fileSize / (1024 * 1024)).toFixed(1);
+      return `CV file size (${fileSizeMB}MB) exceeds maximum allowed size (${maxSizeMB}MB)`;
+    }
+
+    return `File upload field incompatible with CV (${mapping.fieldType})`;
+  }
+
+  /**
+   * Show specific error message for file upload failures
+   */
+  private showFileUploadError(element: HTMLInputElement, errorMessage: string): void {
+    // Create error tooltip
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = `
+      position: absolute;
+      background: #f44336;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      z-index: 10001;
+      max-width: 250px;
+      word-wrap: break-word;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    `;
+
+    tooltip.textContent = errorMessage;
+
+    // Position tooltip near the element
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + window.scrollX}px`;
+    tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+
+    document.body.appendChild(tooltip);
+
+    // Remove tooltip after delay
+    setTimeout(() => {
+      if (tooltip.parentNode) {
+        tooltip.parentNode.removeChild(tooltip);
+      }
+    }, 4000);
   }
 
   /**
@@ -1229,6 +1813,14 @@ class FormDetectionSystem {
         animation: autofill-error-pulse 0.5s ease-in-out;
       }
       
+      .file-upload-success {
+        animation: file-upload-success-pulse 0.8s ease-in-out;
+      }
+      
+      .file-upload-error {
+        animation: file-upload-error-pulse 0.8s ease-in-out;
+      }
+      
       @keyframes autofill-success-pulse {
         0% { transform: scale(1); }
         50% { transform: scale(1.02); }
@@ -1239,6 +1831,33 @@ class FormDetectionSystem {
         0% { transform: scale(1); }
         25% { transform: scale(1.02) translateX(-2px); }
         75% { transform: scale(1.02) translateX(2px); }
+        100% { transform: scale(1); }
+      }
+      
+      @keyframes file-upload-success-pulse {
+        0% { transform: scale(1); }
+        25% { transform: scale(1.05); }
+        50% { transform: scale(1.02); }
+        75% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+      
+      @keyframes file-upload-error-pulse {
+        0% { transform: scale(1); }
+        20% { transform: scale(1.05) translateX(-3px); }
+        40% { transform: scale(1.02) translateX(3px); }
+        60% { transform: scale(1.05) translateX(-3px); }
+        80% { transform: scale(1.02) translateX(3px); }
+        100% { transform: scale(1); }
+      }
+      
+      .file-upload-icon {
+        animation: file-upload-icon-bounce 0.6s ease-in-out;
+      }
+      
+      @keyframes file-upload-icon-bounce {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
         100% { transform: scale(1); }
       }
     `;

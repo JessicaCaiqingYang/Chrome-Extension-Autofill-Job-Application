@@ -409,21 +409,52 @@ export const fieldMapping = {
         'resume', 'cv', 'curriculum', 'curriculum_vitae', 'curriculum vitae',
         'resume_file', 'cv_file', 'resumefile', 'cvfile', 'upload_resume',
         'upload_cv', 'attach_resume', 'attach_cv', 'your_resume', 'your_cv',
-        'resume_upload', 'cv_upload', 'resume attachment', 'cv attachment'
+        'resume_upload', 'cv_upload', 'resume attachment', 'cv attachment',
+        // Enhanced patterns for better detection
+        'upload resume', 'upload cv', 'upload your resume', 'upload your cv',
+        'resume upload', 'cv upload', 'resume file', 'cv file',
+        'resume document', 'cv document', 'resume pdf', 'cv pdf',
+        'resume doc', 'cv doc', 'resume docx', 'cv docx',
+        'attach resume', 'attach cv', 'attach your resume', 'attach your cv',
+        'resume attachment', 'cv attachment', 'resume file upload', 'cv file upload',
+        'upload resume file', 'upload cv file', 'resume file input', 'cv file input',
+        'resume input', 'cv input', 'resume field', 'cv field',
+        'resume upload field', 'cv upload field', 'resume file field', 'cv file field'
       ],
       [FileUploadType.COVER_LETTER_FILE]: [
         'cover_letter', 'coverletter', 'cover letter', 'cover_letter_file',
         'coverletterfile', 'upload_cover_letter', 'attach_cover_letter',
-        'cover_letter_upload', 'cover letter upload', 'cover letter attachment'
+        'cover_letter_upload', 'cover letter upload', 'cover letter attachment',
+        // Enhanced patterns
+        'upload cover letter', 'upload your cover letter', 'cover letter upload',
+        'cover letter file', 'cover letter document', 'cover letter pdf',
+        'cover letter doc', 'cover letter docx', 'attach cover letter',
+        'attach your cover letter', 'cover letter attachment', 'cover letter file upload',
+        'upload cover letter file', 'cover letter file input', 'cover letter input',
+        'cover letter field', 'cover letter upload field', 'cover letter file field'
       ],
       [FileUploadType.PORTFOLIO]: [
         'portfolio', 'portfolio_file', 'portfoliofile', 'work_samples',
         'samples', 'portfolio_upload', 'upload_portfolio', 'attach_portfolio',
-        'portfolio attachment', 'work portfolio'
+        'portfolio attachment', 'work portfolio',
+        // Enhanced patterns
+        'upload portfolio', 'upload your portfolio', 'portfolio upload',
+        'portfolio file', 'portfolio document', 'work samples', 'sample work',
+        'attach portfolio', 'attach your portfolio', 'portfolio attachment',
+        'portfolio file upload', 'upload portfolio file', 'portfolio file input',
+        'portfolio input', 'portfolio field', 'portfolio upload field',
+        'portfolio file field', 'work samples upload', 'sample work upload'
       ],
       [FileUploadType.OTHER]: [
         'document', 'file', 'attachment', 'upload', 'additional_documents',
-        'supporting_documents', 'other_documents'
+        'supporting_documents', 'other_documents',
+        // Enhanced patterns
+        'upload document', 'upload file', 'upload attachment', 'file upload',
+        'document upload', 'attachment upload', 'upload additional documents',
+        'upload supporting documents', 'upload other documents', 'file input',
+        'document input', 'attachment input', 'file field', 'document field',
+        'attachment field', 'file upload field', 'document upload field',
+        'attachment upload field'
       ]
     };
     
@@ -515,16 +546,48 @@ export const fieldMapping = {
     // Base confidence
     let confidence = 0.4;
     
-    // Boost confidence for exact matches
+    // Boost confidence for exact matches with enhanced scoring
     const exactMatches: Partial<Record<FileUploadType, string[]>> = {
-      [FileUploadType.CV_RESUME]: ['resume', 'cv', 'curriculum'],
-      [FileUploadType.COVER_LETTER_FILE]: ['cover_letter', 'coverletter'],
-      [FileUploadType.PORTFOLIO]: ['portfolio', 'work_samples']
+      [FileUploadType.CV_RESUME]: [
+        'resume', 'cv', 'curriculum', 'upload resume', 'upload cv',
+        'resume upload', 'cv upload', 'resume file', 'cv file'
+      ],
+      [FileUploadType.COVER_LETTER_FILE]: [
+        'cover_letter', 'coverletter', 'cover letter', 'upload cover letter',
+        'cover letter upload', 'cover letter file'
+      ],
+      [FileUploadType.PORTFOLIO]: [
+        'portfolio', 'work_samples', 'upload portfolio', 'portfolio upload',
+        'portfolio file', 'work samples'
+      ]
     };
     
     const exactKeywords = exactMatches[fileUploadType] || [];
-    if (exactKeywords.some((keyword: string) => identifierText.includes(keyword))) {
-      confidence += 0.4;
+    let exactMatchScore = 0;
+    exactKeywords.forEach(keyword => {
+      if (identifierText.includes(keyword)) {
+        // Give higher weight to longer, more specific matches
+        if (keyword.includes(' ') || keyword.includes('_')) {
+          exactMatchScore += keyword.length * 1.5; // Boost compound terms
+        } else {
+          exactMatchScore += keyword.length;
+        }
+      }
+    });
+    
+    if (exactMatchScore > 0) {
+      confidence += Math.min(0.5, exactMatchScore / 20); // Cap at 0.5 boost
+    }
+    
+    // Special boost for "upload resume" and "upload cv" patterns
+    if (fileUploadType === FileUploadType.CV_RESUME) {
+      const uploadPatterns = ['upload resume', 'upload cv', 'resume upload', 'cv upload'];
+      const hasUploadPattern = uploadPatterns.some(pattern => 
+        identifierText.includes(pattern)
+      );
+      if (hasUploadPattern) {
+        confidence += 0.3; // Strong boost for upload patterns
+      }
     }
     
     // Boost confidence based on accept attribute relevance
@@ -565,6 +628,17 @@ export const fieldMapping = {
       
       if (hasCvTypes) {
         confidence += 0.2;
+      }
+    }
+    
+    // Additional boost for CV/Resume fields with high relevance
+    if (fileUploadType === FileUploadType.CV_RESUME) {
+      const cvSpecificTerms = ['resume', 'cv', 'curriculum', 'curriculum vitae'];
+      const hasCvSpecificTerms = cvSpecificTerms.some(term => 
+        identifierText.includes(term)
+      );
+      if (hasCvSpecificTerms) {
+        confidence += 0.15;
       }
     }
     

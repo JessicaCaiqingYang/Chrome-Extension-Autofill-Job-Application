@@ -148,6 +148,17 @@ async function handleGetCVData(): Promise<CVData | null> {
   try {
     const cvData = await storage.getCVData();
     console.log('Retrieved CV data:', cvData ? cvData.fileName : 'not found');
+    
+    if (cvData) {
+      console.log('CV data details:', {
+        fileName: cvData.fileName,
+        fileSize: cvData.fileSize,
+        hasFileBlob: !!cvData.fileBlob,
+        blobLength: cvData.fileBlob ? cvData.fileBlob.length : 0,
+        mimeType: cvData.mimeType
+      });
+    }
+    
     return cvData;
   } catch (error) {
     console.error('Error getting CV data:', error);
@@ -163,8 +174,15 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       return { success: false, error: 'No file data provided' };
     }
 
-    // Reconstruct File object from serialized data
-    const file = new File([fileData.arrayBuffer], fileData.name, {
+    // Reconstruct File object from base64 data
+    const byteCharacters = atob(fileData.base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    
+    const file = new File([byteArray], fileData.name, {
       type: fileData.type,
       lastModified: fileData.lastModified
     });
@@ -182,6 +200,14 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
     }
 
     console.log('Processing CV file:', file.name, 'Type:', fileType, 'Size:', file.size);
+    console.log('File object details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+      isBlob: file instanceof Blob,
+      constructor: file.constructor.name
+    });
 
     // Extract text from file
     const extractedText = await extractTextFromFile(file, fileType);
@@ -192,7 +218,11 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
 
     // Convert file blob to base64 for Chrome storage compatibility
     const { blobUtils } = await import('../shared/storage');
+    console.log('Converting file to base64...');
     const fileBlob = await blobUtils.blobToBase64(file);
+    console.log('Base64 conversion result length:', fileBlob.length);
+    console.log('Base64 preview:', fileBlob.substring(0, 50) + '...');
+    
     const mimeType = file.type || blobUtils.getMimeTypeFromExtension(file.name);
 
     // Create CV data object with blob data

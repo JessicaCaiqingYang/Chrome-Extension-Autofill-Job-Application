@@ -113,14 +113,17 @@ export const messaging = {
   },
 
   async setCVData(file: File): Promise<any> {
-    // Convert File to ArrayBuffer for message passing
+    // Convert File to base64 string for message passing
     const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const base64String = btoa(String.fromCharCode(...uint8Array));
+    
     const fileData = {
       name: file.name,
       size: file.size,
       type: file.type,
       lastModified: file.lastModified,
-      arrayBuffer: arrayBuffer
+      base64Data: base64String
     };
 
     return this.sendToServiceWorker({
