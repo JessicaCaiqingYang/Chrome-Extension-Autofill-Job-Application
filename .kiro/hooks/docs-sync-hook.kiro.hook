@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Monitors TypeScript source files, configuration files, and build scripts for changes and triggers documentation updates in README.md and related documentation files",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "*.ts",
+      "*.js",
+      "*.cjs",
+      "package.json",
+      "tsconfig.json",
+      "vite.config.ts",
+      "vitest.config.ts",
+      "public/manifest.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source code or configuration files have been modified in this TypeScript Chrome extension project. Please review the changes and update the documentation accordingly. Focus on:\n\n1. Update README.md with any new features, API changes, or setup instructions\n2. Update any existing documentation in markdown files to reflect code changes\n3. Ensure installation and usage instructions remain accurate\n4. Document any new dependencies or configuration changes\n5. Update examples if the API or usage patterns have changed\n\nPay special attention to changes in:\n- Extension manifest and permissions\n- React component interfaces and props\n- Chrome extension messaging patterns\n- Build configuration and scripts\n- TypeScript types and interfaces\n\nKeep documentation clear, concise, and up-to-date with the current codebase."
+  }
+}

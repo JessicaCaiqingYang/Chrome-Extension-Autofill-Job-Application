@@ -1,0 +1,25 @@
+{
+  "enabled": true,
+  "name": "Project Structure Organizer",
+  "description": "Reorganizes the project to have clean structure with all tests consolidated in a tests/ directory and all README files in a docs/ directory for better maintainability",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "src/test/*.ts",
+      "*.md",
+      "scripts/test-*.js",
+      "test-*.js",
+      "test-*.html",
+      "*test*.cjs",
+      "verify-*.cjs",
+      "verify-*.md",
+      "*TESTING*",
+      "*README*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "I need to reorganize this project structure to be cleaner and more maintainable. Please:\n\n1. Create a `tests/` directory at the root level and move all test files there:\n   - Move all files from `src/test/` to `tests/`\n   - Move `test-extension.js`, `test-integration.html`, `test-messaging.html`, `test-popup.cjs` to `tests/`\n   - Move `scripts/test-extension.js`, `scripts/verify-build.js`, `scripts/verify-extension-functionality.js` to `tests/scripts/`\n   - Move `verify-extension.cjs`, `verify-integration.md` to `tests/`\n\n2. Create a `docs/` directory at the root level and move all documentation there:\n   - Move `README.md`, `EXTENSION_CONTEXT_FIX.md`, `TAB_NAVIGATION_TEST.md`, `TESTING_INSTRUCTIONS.md` to `docs/`\n   - Move `src/shared/DESIGN_SYSTEM_README.md` to `docs/`\n\n3. Update any import paths or references in the moved files to maintain functionality\n\n4. Update the main `package.json` scripts to reference the new test file locations\n\n5. Create a new root-level `README.md` that provides an overview and points to the detailed documentation in the `docs/` folder\n\nThis will create a cleaner project structure where all tests are centralized in one place and all documentation is organized in a dedicated docs folder."
+  }
+}
