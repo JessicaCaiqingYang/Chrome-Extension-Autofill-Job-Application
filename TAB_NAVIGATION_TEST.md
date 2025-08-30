@@ -109,6 +109,9 @@
 - ✅ **Spacing Optimization**: Reduced padding and gaps for better space utilization
 - ✅ **Label Optimization**: Shortened "CV Upload" to "CV" for better fit
 - ✅ **Responsive Layout**: Improved flex layout with `flex: '1 1 auto'` and `minWidth: 'fit-content'`
+- ✅ **Status Update Issue**: Fixed StatusIndicator not updating when profile/CV data changes
+  - Added statusKey state to force StatusIndicator refresh
+  - StatusIndicator now updates immediately when profile is saved, CV is uploaded, or autofill settings change
 
 ## Test Results: ✅ PASSED
 

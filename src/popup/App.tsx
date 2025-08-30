@@ -4,12 +4,12 @@ import { CVUploader } from './components/CVUploader';
 import { AutofillToggle } from './components/AutofillToggle';
 import { StatusIndicator } from './components/StatusIndicator';
 import { UserProfile, CVData } from '../shared/types';
-import { 
-  colors, 
-  typography, 
-  spacing, 
-  borderRadius, 
-  shadows, 
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
   transitions,
   textStyles,
   mergeStyles
@@ -17,27 +17,27 @@ import {
 
 // Tab configuration with icons and labels
 const tabs = [
-  { 
-    id: 'status' as const, 
-    label: 'Status', 
+  {
+    id: 'status' as const,
+    label: 'Status',
     icon: '●', // Status indicator dot
     ariaLabel: 'Extension status and activity'
   },
-  { 
-    id: 'profile' as const, 
-    label: 'Profile', 
+  {
+    id: 'profile' as const,
+    label: 'Profile',
     icon: '👤', // User profile icon
     ariaLabel: 'Edit personal profile information'
   },
-  { 
-    id: 'cv' as const, 
-    label: 'CV', 
+  {
+    id: 'cv' as const,
+    label: 'CV',
     icon: '📄', // Document icon
     ariaLabel: 'Upload and manage CV/resume'
   },
-  { 
-    id: 'autofill' as const, 
-    label: 'Autofill', 
+  {
+    id: 'autofill' as const,
+    label: 'Autofill',
     icon: '⚡', // Lightning bolt for automation
     ariaLabel: 'Configure autofill settings'
   },
@@ -46,15 +46,27 @@ const tabs = [
 function App() {
   const [activeTab, setActiveTab] = useState<'profile' | 'cv' | 'autofill' | 'status'>('status');
   const [profile, setProfile] = useState<UserProfile | null>(null);
+
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleProfileUpdate = (updatedProfile: UserProfile) => {
+    console.log('🔄 Profile updated in App.tsx, triggering status refresh...', updatedProfile);
     setProfile(updatedProfile);
+    // Trigger StatusIndicator refresh via custom event
+    setTimeout(() => {
+      console.log('🔄 Dispatching refreshStatus event...');
+      window.dispatchEvent(new CustomEvent('refreshStatus'));
+    }, 100); // Small delay to ensure data is saved
   };
 
   const handleCVUpdate = (_updatedCV: CVData | null) => {
+    console.log('🔄 CV updated in App.tsx, triggering status refresh...', _updatedCV);
     // CV data is managed internally by CVUploader component
-    // This callback is kept for potential future use
+    // Trigger StatusIndicator refresh via custom event
+    setTimeout(() => {
+      console.log('🔄 Dispatching refreshStatus event...');
+      window.dispatchEvent(new CustomEvent('refreshStatus'));
+    }, 100); // Small delay to ensure data is saved
   };
 
   const handleToggleChange = (enabled: boolean) => {
@@ -66,6 +78,10 @@ function App() {
           autofillEnabled: enabled
         }
       });
+      // Trigger StatusIndicator refresh via custom event
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshStatus'));
+      }, 100); // Small delay to ensure data is saved
     }
   };
 
@@ -220,9 +236,9 @@ function App() {
         <h1 style={titleStyle}>
           Job Application Autofill
         </h1>
-        
+
         {/* Enhanced Tab Navigation */}
-        <nav 
+        <nav
           style={tabNavigationStyle}
           role="tablist"
           aria-label="Extension navigation"
@@ -258,8 +274,8 @@ function App() {
                   Object.assign(e.currentTarget.style, getTabStyle(isActive));
                 }}
               >
-                <span 
-                  style={{ 
+                <span
+                  style={{
                     fontSize: typography.fontSize.xs,
                     lineHeight: '1',
                     transition: transitions.fast,
@@ -269,8 +285,8 @@ function App() {
                 >
                   {tab.icon}
                 </span>
-                <span 
-                  style={{ 
+                <span
+                  style={{
                     fontSize: typography.fontSize.xs,
                     fontWeight: 'inherit',
                     whiteSpace: 'nowrap' as const,
@@ -293,7 +309,7 @@ function App() {
       </div>
 
       {/* Tab Content */}
-      <div 
+      <div
         style={contentStyle}
         role="tabpanel"
         id={`tabpanel-${activeTab}`}
@@ -303,15 +319,15 @@ function App() {
         {activeTab === 'status' && (
           <StatusIndicator />
         )}
-        
+
         {activeTab === 'profile' && (
           <ProfileForm onProfileUpdate={handleProfileUpdate} />
         )}
-        
+
         {activeTab === 'cv' && (
           <CVUploader onCVUpdate={handleCVUpdate} />
         )}
-        
+
         {activeTab === 'autofill' && (
           <AutofillToggle onToggleChange={handleToggleChange} />
         )}

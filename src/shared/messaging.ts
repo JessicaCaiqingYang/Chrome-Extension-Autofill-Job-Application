@@ -6,9 +6,22 @@ export const messaging = {
   async sendToServiceWorker(message: Message): Promise<any> {
     return new Promise((resolve, reject) => {
       try {
+        // Check if extension context is still valid
+        if (!chrome.runtime?.id) {
+          return reject(new Error('Extension context invalidated'));
+        }
+
         chrome.runtime.sendMessage(message, (response) => {
           if (chrome.runtime.lastError) {
-            console.debug('sendToServiceWorker lastError:', chrome.runtime.lastError.message);
+            const error = chrome.runtime.lastError.message || 'Unknown error';
+            console.debug('sendToServiceWorker lastError:', error);
+            
+            // Handle specific context invalidation errors
+            if (error.includes('Extension context invalidated') || 
+                error.includes('receiving end does not exist')) {
+              return reject(new Error('Extension context invalidated. Please reload the extension.'));
+            }
+            
             return reject(chrome.runtime.lastError);
           }
           resolve(response);
@@ -26,8 +39,21 @@ export const messaging = {
     }
     return new Promise((resolve, reject) => {
       try {
+        // Check if extension context is still valid
+        if (!chrome.runtime?.id) {
+          return reject(new Error('Extension context invalidated'));
+        }
+
         chrome.tabs.sendMessage(tabId, message, (response) => {
           if (chrome.runtime.lastError) {
+            const error = chrome.runtime.lastError.message || 'Unknown error';
+            
+            // Handle specific context invalidation errors
+            if (error.includes('Extension context invalidated') || 
+                error.includes('receiving end does not exist')) {
+              return reject(new Error('Extension context invalidated or content script not ready'));
+            }
+            
             return reject(chrome.runtime.lastError);
           }
           resolve(response);

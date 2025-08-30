@@ -180,7 +180,10 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ onProfileUpdate }) => 
       setSaveMessage('Profile saved successfully!');
 
       if (onProfileUpdate) {
+        console.log('🔄 ProfileForm calling onProfileUpdate callback...', updatedProfile);
         onProfileUpdate(updatedProfile);
+      } else {
+        console.warn('⚠️ ProfileForm: onProfileUpdate callback not provided');
       }
 
       // Clear success message after 3 seconds

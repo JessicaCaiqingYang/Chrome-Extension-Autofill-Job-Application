@@ -4,12 +4,64 @@
 import { storage } from '../shared/storage';
 import { messaging } from '../shared/messaging';
 import { Message, MessageType, UserProfile, CVData } from '../shared/types';
-// Note: PDF/DOCX parsing temporarily disabled due to browser compatibility issues
-// import pdfParse from 'pdf-parse';
-// import * as mammoth from 'mammoth';
-// import { Buffer } from 'buffer';
+import pdfParse from 'pdf-parse';
+import * as mammoth from 'mammoth';
+import { Buffer } from 'buffer';
 
 console.log('Job Application Autofill service worker loaded');
+
+// Verify parsing libraries are loaded correctly
+function verifyParsingLibraries(): boolean {
+  try {
+    // Check if pdf-parse is available
+    if (typeof pdfParse !== 'function') {
+      console.error('pdf-parse library not loaded correctly');
+      return false;
+    }
+
+    // Check if mammoth is available
+    if (!mammoth || typeof mammoth.extractRawText !== 'function') {
+      console.error('mammoth library not loaded correctly');
+      return false;
+    }
+
+    // Check if Buffer is available
+    if (!Buffer || typeof Buffer.from !== 'function') {
+      console.error('Buffer polyfill not loaded correctly');
+      return false;
+    }
+
+    console.log('All parsing libraries loaded successfully');
+    
+    // Test basic functionality without actual files
+    try {
+      // Test Buffer creation
+      const testBuffer = Buffer.from('test string', 'utf8');
+      if (testBuffer.length !== 11) {
+        console.error('Buffer functionality test failed');
+        return false;
+      }
+
+      // Test mammoth object structure
+      if (!mammoth.convertToHtml || !mammoth.extractRawText) {
+        console.error('mammoth library missing expected methods');
+        return false;
+      }
+
+      console.log('Parsing libraries functionality verified');
+      return true;
+    } catch (funcError) {
+      console.error('Error testing parsing library functionality:', funcError);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error verifying parsing libraries:', error);
+    return false;
+  }
+}
+
+// Verify libraries on service worker startup
+verifyParsingLibraries();
 
 // Service worker installation and setup
 chrome.runtime.onInstalled.addListener(async () => {

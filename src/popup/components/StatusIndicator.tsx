@@ -46,8 +46,17 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       return true; // Keep message channel open
     };
 
+    // Custom event listener for manual refresh
+    const handleRefreshEvent = () => {
+      console.log('🔄 StatusIndicator received refreshStatus event, reloading status...');
+      loadStatus();
+    };
+
     // Add message listener
     chrome.runtime.onMessage.addListener(messageListener);
+    
+    // Add custom event listener for refresh
+    window.addEventListener('refreshStatus', handleRefreshEvent);
 
     // Refresh status every 30 seconds
     const interval = setInterval(loadStatus, 30000);
@@ -55,14 +64,26 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
     return () => {
       clearInterval(interval);
       chrome.runtime.onMessage.removeListener(messageListener);
+      window.removeEventListener('refreshStatus', handleRefreshEvent);
     };
   }, []);
 
   const loadStatus = async () => {
     try {
+      // Check if extension context is still valid
+      if (!chrome.runtime?.id) {
+        throw new Error('Extension context invalidated. Please reload the extension.');
+      }
+
       const [profile, cvData] = await Promise.all([
-        messaging.getUserProfile().catch(() => null),
-        messaging.getCVData().catch(() => null)
+        messaging.getUserProfile().catch((error) => {
+          console.warn('Failed to get user profile:', error);
+          return null;
+        }),
+        messaging.getCVData().catch((error) => {
+          console.warn('Failed to get CV data:', error);
+          return null;
+        })
       ]);
 
       const defaultProfile = {
@@ -112,11 +133,22 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       setLastUpdate(Date.now());
     } catch (error) {
       console.error('Error loading status:', error);
-      setStatus(prev => ({
-        ...prev,
-        isReady: false,
-        errors: ['Error loading extension status']
-      }));
+      const errorMessage = error instanceof Error ? error.message : 'Error loading extension status';
+      
+      // Handle context invalidation specifically
+      if (errorMessage.includes('Extension context invalidated')) {
+        setStatus(prev => ({
+          ...prev,
+          isReady: false,
+          errors: ['Extension context invalidated. Please reload the extension.']
+        }));
+      } else {
+        setStatus(prev => ({
+          ...prev,
+          isReady: false,
+          errors: [errorMessage]
+        }));
+      }
     } finally {
       setIsLoading(false);
     }

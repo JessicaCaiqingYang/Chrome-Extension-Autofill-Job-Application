@@ -120,6 +120,8 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       // Upload file through messaging
       const result = await messaging.setCVData(file);
       
+      console.log('🔍 CVUploader received result from messaging.setCVData:', result);
+      
       setUploadProgress(100);
 
       if (result && result.success) {
@@ -135,7 +137,10 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
         setSuccessMessage(`CV uploaded successfully! ${result.extractedText ? 'Text extracted.' : 'Processing...'}`);
         
         if (onCVUpdate) {
+          console.log('🔄 CVUploader calling onCVUpdate callback...', newCVData);
           onCVUpdate(newCVData);
+        } else {
+          console.warn('⚠️ CVUploader: onCVUpdate callback not provided');
         }
 
         // Clear success message after 3 seconds
@@ -170,7 +175,10 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       setSuccessMessage('CV removed successfully');
       
       if (onCVUpdate) {
+        console.log('🔄 CVUploader calling onCVUpdate callback for removal...');
         onCVUpdate(null);
+      } else {
+        console.warn('⚠️ CVUploader: onCVUpdate callback not provided for removal');
       }
 
       // Clear success message after 3 seconds
