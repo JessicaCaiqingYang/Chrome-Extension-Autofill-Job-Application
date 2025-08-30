@@ -202,6 +202,103 @@ interface CVProcessingError {
 - Allow users to preview extracted text
 - Maintain upload progress feedback
 
+## CV Text Analysis and Profile Auto-filling
+
+### CV Text Parser Module
+
+**Location:** `src/shared/cv-parser.ts`
+
+**Core Function:**
+```typescript
+interface ParsedCVData {
+  personalInfo: Partial<UserProfile['personalInfo']>;
+  workInfo: Partial<UserProfile['workInfo']>;
+  confidence: {
+    [key: string]: number; // Confidence score for each extracted field (0-1)
+  };
+  rawMatches: {
+    [key: string]: string[]; // All potential matches found for each field
+  };
+}
+
+async function parseCVText(extractedText: string): Promise<ParsedCVData>
+```
+
+**Pattern Recognition Strategies:**
+1. **Email Detection**: Regex patterns for various email formats
+2. **Phone Number Detection**: Support for multiple international and domestic formats
+3. **Name Extraction**: Analyze document structure and common name patterns
+4. **Skills Identification**: Keyword matching against common technical skills database
+5. **Experience Parsing**: Section-based analysis for work history and job titles
+6. **Address Parsing**: Multi-line address pattern recognition
+
+### Profile Auto-fill Integration
+
+**UI Components:**
+- "Auto-fill from CV" button in profile form
+- Preview dialog showing extracted information
+- Field-by-field confirmation interface
+- Confidence indicators for each extracted field
+
+**Workflow:**
+1. User uploads CV and text is extracted
+2. System automatically analyzes text for profile information
+3. "Auto-fill from CV" button becomes available in profile section
+4. User clicks button to see extracted information preview
+5. User reviews, edits, and confirms information
+6. Profile is updated with confirmed data
+
+### Text Analysis Pipeline
+
+**Processing Steps:**
+1. **Text Preprocessing**: Clean and normalize extracted text
+2. **Section Detection**: Identify resume sections (Contact, Experience, Skills, etc.)
+3. **Pattern Matching**: Apply regex patterns for structured data (email, phone, URLs)
+4. **Contextual Analysis**: Use surrounding text to improve accuracy
+5. **Confidence Scoring**: Rate the reliability of each extraction
+6. **Conflict Resolution**: Handle multiple potential matches for the same field
+
+**Pattern Examples:**
+```typescript
+const patterns = {
+  email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+  phone: /(\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/g,
+  linkedin: /linkedin\.com\/in\/[\w-]+/gi,
+  skills: /(?:skills?|technologies?|expertise|proficient in)[:\s]+(.*?)(?:\n\n|\n[A-Z]|$)/gis
+};
+```
+
+## Enhanced Data Models
+
+### CV Analysis Result Interface
+```typescript
+interface CVAnalysisResult {
+  extractedFields: ParsedCVData;
+  analysisMetadata: {
+    processingTime: number;
+    sectionsFound: string[];
+    totalMatches: number;
+    averageConfidence: number;
+  };
+  suggestions: {
+    field: keyof UserProfile['personalInfo'] | keyof UserProfile['workInfo'];
+    value: string;
+    confidence: number;
+    source: string; // Which part of the CV this came from
+  }[];
+}
+```
+
+### Enhanced Message Types
+```typescript
+enum MessageType {
+  // ... existing types
+  PARSE_CV_FOR_PROFILE = 'PARSE_CV_FOR_PROFILE',
+  CV_ANALYSIS_COMPLETE = 'CV_ANALYSIS_COMPLETE',
+  AUTO_FILL_PROFILE = 'AUTO_FILL_PROFILE'
+}
+```
+
 ## Migration Strategy
 
 ### Phase 1: Enable Basic Parsing
@@ -216,8 +313,15 @@ interface CVProcessingError {
 3. Add progress indicators
 4. Optimize performance
 
-### Phase 3: Advanced Features
+### Phase 3: CV Analysis and Auto-fill
+1. Implement CV text analysis patterns
+2. Create profile auto-fill functionality
+3. Add preview and confirmation UI
+4. Test with various resume formats
+
+### Phase 4: Advanced Features
 1. Add text preview functionality
 2. Implement parsing options/preferences
 3. Add support for additional formats if needed
 4. Performance monitoring and optimization
+5. Machine learning improvements for better accuracy

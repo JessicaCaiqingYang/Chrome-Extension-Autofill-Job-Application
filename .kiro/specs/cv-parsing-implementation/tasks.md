@@ -6,7 +6,7 @@
   - Verify that the libraries load correctly in the Chrome extension environment
   - _Requirements: 3.1, 3.2_
 
-- [ ] 2. Implement PDF text extraction functionality
+- [x] 2. Implement PDF text extraction functionality
   - Create a dedicated PDF parsing function that converts File to Buffer and uses pdf-parse
   - Add proper error handling for corrupted PDFs and parsing failures
   - Implement text cleaning to remove excessive whitespace and normalize line breaks
@@ -68,3 +68,51 @@
   - Test with various file sizes up to the 5MB limit
   - Verify Chrome extension compatibility across different Chrome versions
   - _Requirements: 3.3, 3.4_
+
+- [ ] 11. Implement CV text analysis for profile auto-filling
+  - Create CV text parser module with pattern recognition for personal information
+  - Implement regex patterns for email, phone, LinkedIn URL, and address extraction
+  - Add name detection logic using document structure analysis
+  - Create skills extraction functionality with keyword matching
+  - Write unit tests for text analysis patterns with various CV formats
+  - _Requirements: 6.1, 6.2, 6.3, 8.1, 8.2, 8.3, 8.4_
+
+- [ ] 12. Build profile auto-fill integration system
+  - Create ParsedCVData interface and CV analysis result structures
+  - Implement confidence scoring system for extracted information
+  - Add message types for CV analysis and profile auto-fill communication
+  - Create service worker handlers for CV analysis requests
+  - Write integration tests for CV text to profile data conversion
+  - _Requirements: 6.1, 6.2, 6.3, 6.4_
+
+- [ ] 13. Develop auto-fill preview and confirmation UI
+  - Add "Auto-fill from CV" button to profile form component
+  - Create preview dialog component showing extracted profile information
+  - Implement field-by-field editing interface with confidence indicators
+  - Add confirmation and cancellation workflows for profile updates
+  - Style the preview interface to match existing extension design
+  - _Requirements: 7.1, 7.2, 7.3, 7.4_
+
+- [ ] 14. Enhance CV analysis with advanced pattern recognition
+  - Implement section detection for different resume formats (chronological, functional, hybrid)
+  - Add contextual analysis to improve extraction accuracy
+  - Create conflict resolution logic for multiple potential field matches
+  - Implement experience and job title extraction from work history sections
+  - Add support for various address formats and international phone numbers
+  - _Requirements: 8.1, 8.2, 8.3, 8.4_
+
+- [ ] 15. Add comprehensive testing for CV analysis functionality
+  - Create test CV samples with various formats and layouts
+  - Write unit tests for each pattern recognition function
+  - Test extraction accuracy with real-world resume examples
+  - Verify confidence scoring accuracy and reliability
+  - Test edge cases like missing sections or unusual formatting
+  - _Requirements: 6.1, 6.2, 6.3, 7.1, 8.1, 8.2, 8.3, 8.4_
+
+- [ ] 16. Implement end-to-end auto-fill workflow testing
+  - Test complete flow from CV upload to profile auto-fill
+  - Verify UI interactions for preview and confirmation dialogs
+  - Test profile update functionality with extracted data
+  - Validate that existing profile data is preserved when user cancels
+  - Test with various user scenarios and resume types
+  - _Requirements: 6.4, 7.1, 7.2, 7.3, 7.4_

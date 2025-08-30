@@ -60,3 +60,36 @@ The Job Application Autofill extension currently accepts CV/resume file uploads 
 2. WHEN a user uploads a corrupted PDF or DOCX file THEN the system SHALL handle the error gracefully without crashing
 3. WHEN a user uploads a password-protected PDF THEN the system SHALL inform the user that password-protected files are not supported
 4. WHEN a user uploads a very large file THEN the system SHALL enforce size limits and provide appropriate feedback
+
+### Requirement 6
+
+**User Story:** As a job seeker, I want the extension to automatically extract personal information from my CV text and populate my profile, so that I don't have to manually enter information that's already in my resume.
+
+#### Acceptance Criteria
+
+1. WHEN CV text extraction is successful THEN the system SHALL analyze the text to identify personal information fields
+2. WHEN personal information is detected THEN the system SHALL extract name, email, phone number, and address information
+3. WHEN work-related information is detected THEN the system SHALL extract current job title, skills, and experience details
+4. WHEN extracted information is available THEN the system SHALL present it to the user for confirmation before updating their profile
+
+### Requirement 7
+
+**User Story:** As a job seeker, I want to review and edit the automatically extracted profile information before it's saved, so that I can ensure accuracy and make any necessary corrections.
+
+#### Acceptance Criteria
+
+1. WHEN profile information is extracted from CV THEN the system SHALL display a preview of all extracted fields
+2. WHEN the user reviews extracted information THEN they SHALL be able to edit any field before confirming
+3. WHEN the user confirms the extracted information THEN the system SHALL update their profile with the new data
+4. WHEN the user cancels the auto-fill process THEN the system SHALL not modify their existing profile data
+
+### Requirement 8
+
+**User Story:** As a job seeker, I want the CV parsing to intelligently identify different types of information in my resume, so that the auto-fill feature works accurately with various resume formats and styles.
+
+#### Acceptance Criteria
+
+1. WHEN analyzing CV text THEN the system SHALL use pattern recognition to identify email addresses, phone numbers, and URLs
+2. WHEN analyzing CV text THEN the system SHALL identify skills sections and extract technical competencies
+3. WHEN analyzing CV text THEN the system SHALL recognize common resume section headers (Experience, Education, Skills, etc.)
+4. WHEN multiple potential values are found for a field THEN the system SHALL select the most likely candidate based on context and position
