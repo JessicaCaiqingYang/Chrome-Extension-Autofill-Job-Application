@@ -4,19 +4,16 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: './', // Use relative paths for Chrome extension
   build: {
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
-        background: resolve(__dirname, 'src/background/service-worker.ts'),
-        content: resolve(__dirname, 'src/content/content-script-standalone.ts'),
+        content: resolve(__dirname, 'src/content/content-script.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
           const name = chunkInfo.name
-          if (name === 'background') {
-            return 'background/background.js'
-          }
           if (name === 'content') {
             return 'content/content.js'
           }
@@ -30,21 +27,10 @@ export default defineConfig({
           return 'assets/[name]-[hash].[ext]'
         },
         chunkFileNames: 'assets/[name]-[hash].js',
-        manualChunks: (id) => {
-          // Don't create shared chunks for content script - inline everything
-          if (id.includes('content-script') || id.includes('src/shared')) {
-            return undefined;
-          }
-          // Allow shared chunks for popup and background
-          if (id.includes('node_modules') && !id.includes('content-script')) {
-            return 'vendor';
-          }
-        }
+        manualChunks: undefined, // Disable manual chunks to force inlining
+        inlineDynamicImports: false
       },
-      external: (id) => {
-        // Don't externalize anything for content script
-        return false;
-      }
+      external: () => false
     },
     outDir: 'dist',
     emptyOutDir: true,

@@ -11,7 +11,14 @@ export const messaging = {
           return reject(new Error('Extension context invalidated'));
         }
 
+        // Add timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          reject(new Error('Service worker communication timeout'));
+        }, 5000);
+
         chrome.runtime.sendMessage(message, (response) => {
+          clearTimeout(timeout);
+          
           if (chrome.runtime.lastError) {
             const error = chrome.runtime.lastError.message || 'Unknown error';
             console.debug('sendToServiceWorker lastError:', error);

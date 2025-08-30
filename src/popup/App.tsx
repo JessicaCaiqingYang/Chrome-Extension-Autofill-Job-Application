@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { ProfileForm } from './components/ProfileForm';
-import { CVUploader } from './components/CVUploader';
-import { AutofillToggle } from './components/AutofillToggle';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { StatusIndicator } from './components/StatusIndicator';
+
+// Lazy load heavy components to improve initial popup load time
+const ProfileForm = lazy(() => import('./components/ProfileForm').then(module => ({ default: module.ProfileForm })));
+const CVUploader = lazy(() => import('./components/CVUploader').then(module => ({ default: module.CVUploader })));
+const AutofillToggle = lazy(() => import('./components/AutofillToggle').then(module => ({ default: module.AutofillToggle })));
 import { UserProfile, CVData } from '../shared/types';
 import {
   colors,
@@ -321,15 +323,21 @@ function App() {
         )}
 
         {activeTab === 'profile' && (
-          <ProfileForm onProfileUpdate={handleProfileUpdate} />
+          <Suspense fallback={<div style={{ padding: '16px', textAlign: 'center' }}>Loading...</div>}>
+            <ProfileForm onProfileUpdate={handleProfileUpdate} />
+          </Suspense>
         )}
 
         {activeTab === 'cv' && (
-          <CVUploader onCVUpdate={handleCVUpdate} />
+          <Suspense fallback={<div style={{ padding: '16px', textAlign: 'center' }}>Loading...</div>}>
+            <CVUploader onCVUpdate={handleCVUpdate} />
+          </Suspense>
         )}
 
         {activeTab === 'autofill' && (
-          <AutofillToggle onToggleChange={handleToggleChange} />
+          <Suspense fallback={<div style={{ padding: '16px', textAlign: 'center' }}>Loading...</div>}>
+            <AutofillToggle onToggleChange={handleToggleChange} />
+          </Suspense>
         )}
       </div>
     </div>

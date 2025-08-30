@@ -1,16 +1,204 @@
-// Content script for Job Application Autofill extension
+// Standalone Content script for Job Application Autofill extension
 // This will handle form detection and filling on job application pages
+// All dependencies are inlined to avoid communication issues
 
-import { fieldMapping } from '../shared/fieldMapping';
 import { FieldType, FieldMapping, MessageType, Message } from '../shared/types';
-import { messaging } from '../shared/messaging';
+
+// Inline field mapping utilities
+const inlineFieldMapping = {
+  isFieldFillable(element: HTMLElement): boolean {
+    if (!element || element.offsetParent === null) return false;
+    
+    const input = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    if (input.disabled || (input as HTMLInputElement | HTMLTextAreaElement).readOnly) return false;
+    
+    const style = window.getComputedStyle(element);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    
+    return true;
+  },
+
+  getFieldIdentifiers(element: HTMLElement): string[] {
+    const input = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    return [
+      input.name || '',
+      input.id || '',
+      input.className || '',
+      (input as HTMLInputElement | HTMLTextAreaElement).placeholder || '',
+      element.getAttribute('aria-label') || '',
+      element.getAttribute('data-field') || ''
+    ].filter(Boolean);
+  },
+
+  getAssociatedLabelText(element: HTMLElement): string {
+    const input = element as HTMLInputElement;
+    
+    // Try to find label by 'for' attribute
+    if (input.id) {
+      const label = document.querySelector(`label[for="${input.id}"]`);
+      if (label) return label.textContent?.trim() || '';
+    }
+    
+    // Try to find parent label
+    const parentLabel = element.closest('label');
+    if (parentLabel) return parentLabel.textContent?.trim() || '';
+    
+    return '';
+  },
+
+  getNearbyText(element: HTMLElement): string {
+    const parent = element.parentElement;
+    if (!parent) return '';
+    
+    const textNodes: string[] = [];
+    const walker = document.createTreeWalker(
+      parent,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let node;
+    while (node = walker.nextNode()) {
+      const text = node.textContent?.trim();
+      if (text && text.length < 100) {
+        textNodes.push(text);
+      }
+    }
+    
+    return textNodes.join(' ');
+  },
+
+  identifyFieldType(element: HTMLElement, userProfile: any): FieldMapping | null {
+    const identifiers = this.getFieldIdentifiers(element);
+    const identifierText = identifiers.join(' ').toLowerCase();
+    
+    const patterns: Record<FieldType, string[]> = {
+      [FieldType.FIRST_NAME]: ['firstname', 'first_name', 'fname', 'given_name'],
+      [FieldType.LAST_NAME]: ['lastname', 'last_name', 'lname', 'surname'],
+      [FieldType.EMAIL]: ['email', 'email_address', 'e_mail'],
+      [FieldType.PHONE]: ['phone', 'telephone', 'tel', 'mobile'],
+      [FieldType.ADDRESS]: ['address', 'street', 'address_line_1'],
+      [FieldType.CITY]: ['city', 'town', 'locality'],
+      [FieldType.STATE]: ['state', 'province', 'region'],
+      [FieldType.POSTCODE]: ['zip', 'zipcode', 'postal', 'postcode'],
+      [FieldType.COVER_LETTER]: ['cover_letter', 'message', 'comments'],
+      [FieldType.RESUME_TEXT]: ['resume', 'cv', 'experience']
+    };
+    
+    for (const [fieldType, patternList] of Object.entries(patterns)) {
+      for (const pattern of patternList) {
+        if (identifierText.includes(pattern)) {
+          const value = this.getValueForFieldType(fieldType as FieldType, userProfile);
+          return {
+            element: element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+            fieldType: fieldType as FieldType,
+            confidence: 0.8,
+            value
+          };
+        }
+      }
+    }
+    
+    return null;
+  },
+
+  getValueForFieldType(fieldType: FieldType, userProfile: any): string {
+    if (!userProfile || !userProfile.personalInfo) return '';
+    
+    const personal = userProfile.personalInfo;
+    const address = personal.address || {};
+    
+    switch (fieldType) {
+      case FieldType.FIRST_NAME: return personal.firstName || '';
+      case FieldType.LAST_NAME: return personal.lastName || '';
+      case FieldType.EMAIL: return personal.email || '';
+      case FieldType.PHONE: return personal.phone || '';
+      case FieldType.ADDRESS: return address.street || '';
+      case FieldType.CITY: return address.city || '';
+      case FieldType.STATE: return address.state || '';
+      case FieldType.POSTCODE: return address.postcode || '';
+      case FieldType.COVER_LETTER: return userProfile.coverLetter || '';
+      case FieldType.RESUME_TEXT: return userProfile.resumeText || '';
+      default: return '';
+    }
+  }
+};
 
 console.log('Job Application Autofill content script loaded');
 
-// Signal that the content script is ready
-chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY' }).catch(() => {
-  // Ignore errors if service worker is not ready
-});
+// Signal that the content script is ready and provide page relevance info
+const signalReady = async () => {
+  try {
+    const pageInfo = await checkPageRelevance();
+    chrome.runtime.sendMessage({ 
+      type: MessageType.CONTENT_SCRIPT_READY,
+      payload: pageInfo
+    }).catch(() => {
+      // Ignore errors if service worker is not ready
+    });
+  } catch (error) {
+    console.error('Error signaling content script ready:', error);
+  }
+};
+
+// Check page relevance for job applications
+const checkPageRelevance = async (): Promise<{
+  isRelevant: boolean;
+  formCount: number;
+  fieldCount: number;
+  confidence: number;
+  url: string;
+}> => {
+  const url = window.location.href;
+  const hostname = window.location.hostname;
+  
+  // Quick scan for forms and fields
+  const forms = document.querySelectorAll('form');
+  const inputs = document.querySelectorAll('input, textarea, select');
+  const fillableInputs = Array.from(inputs).filter(input => 
+    inlineFieldMapping.isFieldFillable(input as HTMLElement)
+  );
+  
+  // Check for job-related keywords in page content
+  const pageText = document.body.textContent?.toLowerCase() || '';
+  const jobKeywords = [
+    'job application', 'apply now', 'career', 'position', 'employment',
+    'resume', 'cv', 'cover letter', 'application form', 'candidate',
+    'hiring', 'recruitment', 'work experience', 'qualifications'
+  ];
+  
+  const keywordMatches = jobKeywords.filter(keyword => 
+    pageText.includes(keyword) || url.toLowerCase().includes(keyword)
+  ).length;
+  
+  // Check for common job site domains
+  const jobSiteDomains = [
+    'linkedin.com', 'indeed.com', 'glassdoor.com', 'monster.com',
+    'ziprecruiter.com', 'careerbuilder.com', 'simplyhired.com',
+    'jobs.com', 'workday.com', 'greenhouse.io', 'lever.co'
+  ];
+  
+  const isJobSite = jobSiteDomains.some(domain => hostname.includes(domain));
+  
+  // Calculate relevance confidence
+  let confidence = 0;
+  if (isJobSite) confidence += 0.4;
+  if (keywordMatches > 0) confidence += Math.min(0.3, keywordMatches * 0.1);
+  if (fillableInputs.length > 3) confidence += 0.2;
+  if (forms.length > 0) confidence += 0.1;
+  
+  const isRelevant = confidence > 0.3 || (fillableInputs.length > 5 && keywordMatches > 0);
+  
+  return {
+    isRelevant,
+    formCount: forms.length,
+    fieldCount: fillableInputs.length,
+    confidence: Math.min(1, confidence),
+    url
+  };
+};
+
+signalReady();
 
 class FormDetectionSystem {
   private detectedFields: HTMLElement[] = [];
@@ -72,7 +260,7 @@ class FormDetectionSystem {
 
       // Filter for fillable fields only
       this.detectedFields = allFields.filter(field =>
-        fieldMapping.isFieldFillable(field)
+        inlineFieldMapping.isFieldFillable(field)
       );
 
       // Classify field types
@@ -202,7 +390,7 @@ class FormDetectionSystem {
     }
 
     // Must be visible and enabled
-    if (!fieldMapping.isFieldFillable(element)) {
+    if (!inlineFieldMapping.isFieldFillable(element)) {
       return false;
     }
 
@@ -250,7 +438,7 @@ class FormDetectionSystem {
    */
   private hasRelevantContext(element: HTMLElement): boolean {
     // Check for associated labels
-    const labelText = fieldMapping.getAssociatedLabelText(element);
+    const labelText = inlineFieldMapping.getAssociatedLabelText(element);
     if (labelText) {
       const formKeywords = [
         'name', 'email', 'phone', 'address', 'city', 'state', 'zip',
@@ -263,7 +451,7 @@ class FormDetectionSystem {
     }
 
     // Check nearby text content
-    const nearbyText = fieldMapping.getNearbyText(element);
+    const nearbyText = inlineFieldMapping.getNearbyText(element);
     if (nearbyText) {
       const formKeywords = ['name', 'email', 'phone', 'address'];
       const lowerNearbyText = nearbyText.toLowerCase();
@@ -351,7 +539,7 @@ class FormDetectionSystem {
     const inputElement = field as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
     // Strategy 1: Use existing field mapping logic
-    const basicMapping = fieldMapping.identifyFieldType(field, userProfile);
+    const basicMapping = inlineFieldMapping.identifyFieldType(field, userProfile);
     if (basicMapping && basicMapping.confidence > 0.5) {
       return basicMapping;
     }
@@ -391,7 +579,7 @@ class FormDetectionSystem {
    * Enhanced attribute-based mapping with improved pattern matching
    */
   private mapByEnhancedAttributes(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, userProfile: any): FieldMapping | null {
-    const identifiers = fieldMapping.getFieldIdentifiers(element);
+    const identifiers = inlineFieldMapping.getFieldIdentifiers(element);
     const identifierText = identifiers.join(' ').toLowerCase();
 
     // Enhanced patterns with more variations and context
@@ -499,7 +687,7 @@ class FormDetectionSystem {
     });
 
     if (bestFieldType && bestConfidence > 0) {
-      const value = fieldMapping.getValueForFieldType(bestFieldType, userProfile);
+      const value = inlineFieldMapping.getValueForFieldType(bestFieldType, userProfile);
       return {
         element,
         fieldType: bestFieldType,
@@ -548,7 +736,7 @@ class FormDetectionSystem {
     });
 
     if (bestFieldType && bestConfidence > 0) {
-      const value = fieldMapping.getValueForFieldType(bestFieldType, userProfile);
+      const value = inlineFieldMapping.getValueForFieldType(bestFieldType, userProfile);
       return {
         element,
         fieldType: bestFieldType,
@@ -566,7 +754,7 @@ class FormDetectionSystem {
   private mapByPosition(element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, userProfile: any): FieldMapping | null {
     const form = element.closest('form') || document.body;
     const allInputs = Array.from(form.querySelectorAll('input, textarea, select'))
-      .filter(el => fieldMapping.isFieldFillable(el as HTMLElement)) as HTMLElement[];
+      .filter(el => inlineFieldMapping.isFieldFillable(el as HTMLElement)) as HTMLElement[];
 
     const elementIndex = allInputs.indexOf(element as HTMLElement);
 
@@ -582,7 +770,7 @@ class FormDetectionSystem {
 
     const pattern = positionPatterns.find(p => p.index === elementIndex);
     if (pattern) {
-      const value = fieldMapping.getValueForFieldType(pattern.fieldType, userProfile);
+      const value = inlineFieldMapping.getValueForFieldType(pattern.fieldType, userProfile);
       return {
         element,
         fieldType: pattern.fieldType,
@@ -806,6 +994,26 @@ class FormDetectionSystem {
             sendResponse({ success: true });
             return false; // Synchronous response
 
+          case MessageType.CHECK_PAGE_RELEVANCE:
+            // Check page relevance for job applications
+            checkPageRelevance()
+              .then(result => {
+                console.log('Page relevance check completed:', result);
+                sendResponse(result);
+              })
+              .catch(error => {
+                console.error('Page relevance check failed:', error);
+                sendResponse({ 
+                  isRelevant: false, 
+                  formCount: 0, 
+                  fieldCount: 0, 
+                  confidence: 0, 
+                  url: window.location.href,
+                  error: error.message 
+                });
+              });
+            return true; // Keep message channel open for async response
+
           case 'PING' as any:
             // Health check - respond immediately
             console.log('Content script ping received');
@@ -824,24 +1032,8 @@ class FormDetectionSystem {
       }
     });
 
-    // Backup message listener for additional compatibility
-    messaging.addMessageListener(async (message, _sender, sendResponse) => {
-      console.log('Content script received message via messaging utility:', message.type);
-      
-      try {
-        if (message.type === MessageType.TRIGGER_AUTOFILL) {
-          const result = await this.handleAutofillTrigger(message.payload);
-          sendResponse?.(result);
-          return true;
-        }
-        
-        sendResponse?.({ success: false, error: 'Unknown message type' });
-      } catch (err) {
-        console.error('Content script message handler error:', err);
-        sendResponse?.({ success: false, error: String(err) });
-      }
-      return true;
-    });
+    // Note: messaging.addMessageListener is not available in content script context
+    // All messaging is handled through the primary chrome.runtime.onMessage listener above
 
     console.log('Content script message listeners set up successfully');
   }
@@ -960,27 +1152,28 @@ class FormDetectionSystem {
     }
 
     // Check if field is still fillable
-    if (!fieldMapping.isFieldFillable(element as HTMLElement)) {
+    if (!inlineFieldMapping.isFieldFillable(element as HTMLElement)) {
       console.log(`Skipping ${fieldType} - field is no longer fillable`);
       return false;
     }
 
     try {
       // Store original value for potential rollback
-      const originalValue = element.value;
+      const originalValue = (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value;
 
       // Use safe filling method
-      const success = this.safelyFillField(element, value);
+      const success = this.safelyFillField(element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value);
 
       if (!success) {
         return false;
       }
 
       // Validate the fill was successful
-      if (element.value !== value) {
-        console.warn(`Fill validation failed for ${fieldType}. Expected: "${value}", Got: "${element.value}"`);
+      const inputElement = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (inputElement.value !== value) {
+        console.warn(`Fill validation failed for ${fieldType}. Expected: "${value}", Got: "${inputElement.value}"`);
         // Attempt to restore original value
-        element.value = originalValue;
+        inputElement.value = originalValue;
         return false;
       }
 

@@ -10,6 +10,14 @@ import { Buffer } from 'buffer';
 
 console.log('Job Application Autofill service worker loaded');
 
+// Test service worker startup
+try {
+  console.log('Service worker startup test - chrome.runtime.id:', chrome.runtime.id);
+  console.log('Service worker startup test - chrome.storage available:', !!chrome.storage);
+} catch (error) {
+  console.error('Service worker startup error:', error);
+}
+
 // Verify parsing libraries are loaded correctly
 function verifyParsingLibraries(): boolean {
   try {
@@ -85,8 +93,15 @@ chrome.runtime.onSuspend.addListener(async () => {
 });
 
 // Message handling system for popup and content script communication
-messaging.addMessageListener((message: Message, sender, sendResponse) => {
-  console.log('Service worker received message:', message.type, sender);
+chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
+  console.log('Service worker received message:', message.type, 'from:', sender?.tab?.id || 'popup');
+
+  // Handle PING synchronously for immediate response
+  if ((message as any).type === 'PING') {
+    console.log('Service worker ping received - responding immediately');
+    sendResponse({ success: true, status: 'ready', timestamp: Date.now() });
+    return false; // Synchronous response
+  }
 
   // Handle async operations properly
   (async () => {
@@ -137,8 +152,15 @@ messaging.addMessageListener((message: Message, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
 
+
+
         case 'CONTENT_SCRIPT_READY' as any:
-          console.log('Content script ready signal received from tab:', sender.tab?.id);
+          console.log('Content script ready signal received from tab:', sender.tab?.id, 'with page info:', message.payload);
+          // Store page relevance info for this tab
+          if (sender.tab?.id && message.payload) {
+            // Could store this in a Map for quick access if needed
+            console.log('Page relevance for tab', sender.tab.id, ':', message.payload);
+          }
           sendResponse({ success: true });
           break;
 
@@ -303,12 +325,8 @@ async function extractTextFromFile(file: File, fileType: 'pdf' | 'docx'): Promis
       extractedText = pdfResult.text;
       pageCount = pdfResult.pageCount;
     } else if (fileType === 'docx') {
-      // DOCX extraction will be implemented in a separate task
-      console.warn('DOCX text extraction not yet implemented');
-      return {
-        text: `[File uploaded: ${file.name} (DOCX) - Text extraction will be implemented in a future update]`,
-        pageCount: undefined
-      };
+      extractedText = await extractTextFromDOCX(file);
+      pageCount = undefined; // DOCX doesn't have page concept like PDF
     } else {
       throw new Error(`Unsupported file type: ${fileType}`);
     }
@@ -388,6 +406,52 @@ async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount
       }
     } else {
       throw new Error('Unknown error occurred during PDF parsing.');
+    }
+  }
+}
+
+// Extract text from DOCX files using mammoth
+async function extractTextFromDOCX(file: File): Promise<string> {
+  try {
+    console.log('Converting DOCX file to buffer for parsing...');
+    
+    // Convert File to ArrayBuffer for mammoth
+    const arrayBuffer = await file.arrayBuffer();
+    
+    console.log(`DOCX buffer created, size: ${arrayBuffer.byteLength} bytes`);
+    
+    // Parse DOCX with mammoth - extract raw text to preserve structure
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    
+    console.log(`DOCX parsing complete. Text length: ${result.value.length}`);
+    
+    // Check for extraction warnings
+    if (result.messages && result.messages.length > 0) {
+      console.warn('DOCX extraction warnings:', result.messages);
+    }
+    
+    if (!result.value || result.value.trim().length === 0) {
+      throw new Error('No readable text found in the DOCX document. The document may be empty or corrupted.');
+    }
+    
+    return result.value;
+    
+  } catch (error) {
+    console.error('DOCX parsing error:', error);
+    
+    if (error instanceof Error) {
+      // Handle specific mammoth errors
+      if (error.message.includes('not a valid zip file') || error.message.includes('invalid signature')) {
+        throw new Error('Invalid DOCX file structure - the file may be corrupted or not a valid Word document.');
+      } else if (error.message.includes('No readable text')) {
+        throw error; // Re-throw our custom validation error
+      } else if (error.message.includes('password') || error.message.includes('encrypted')) {
+        throw new Error('Password-protected or encrypted DOCX files are not supported.');
+      } else {
+        throw new Error(`DOCX parsing failed: ${error.message}`);
+      }
+    } else {
+      throw new Error('Unknown error occurred during DOCX parsing.');
     }
   }
 }

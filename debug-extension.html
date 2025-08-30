@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extension Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; border-left: 4px solid #dc3545; }
+        button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Extension Debug Console</h1>
+    <div id="output"></div>
+    
+    <button onclick="testExtensionContext()">Test Extension Context</button>
+    <button onclick="testServiceWorkerPing()">Test Service Worker PING</button>
+    <button onclick="testGetProfile()">Test Get Profile</button>
+    <button onclick="clearOutput()">Clear</button>
+
+    <script>
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = `test ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            output.appendChild(div);
+            console.log(message);
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        function testExtensionContext() {
+            log('Testing extension context...');
+            
+            if (typeof chrome === 'undefined') {
+                log('❌ Chrome APIs not available', 'error');
+                return;
+            }
+            
+            if (!chrome.runtime) {
+                log('❌ chrome.runtime not available', 'error');
+                return;
+            }
+            
+            if (!chrome.runtime.id) {
+                log('❌ chrome.runtime.id not available - extension context invalid', 'error');
+                return;
+            }
+            
+            log(`✅ Extension context OK - ID: ${chrome.runtime.id}`, 'success');
+            log(`✅ chrome.runtime.sendMessage available: ${typeof chrome.runtime.sendMessage}`, 'success');
+        }
+
+        async function testServiceWorkerPing() {
+            log('Testing service worker PING...');
+            
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('PING timeout after 5 seconds'));
+                    }, 5000);
+                    
+                    chrome.runtime.sendMessage({type: 'PING'}, (response) => {
+                        clearTimeout(timeout);
+                        
+                        if (chrome.runtime.lastError) {
+                            reject(new Error(chrome.runtime.lastError.message));
+                            return;
+                        }
+                        
+                        resolve(response);
+                    });
+                });
+                
+                log(`✅ Service worker PING successful: ${JSON.stringify(response)}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Service worker PING failed: ${error.message}`, 'error');
+                
+                // Additional debugging
+                if (error.message.includes('receiving end does not exist')) {
+                    log('💡 Service worker may not be running. Check chrome://extensions/ and look for service worker status.', 'error');
+                }
+            }
+        }
+
+        async function testGetProfile() {
+            log('Testing GET_USER_PROFILE...');
+            
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Profile fetch timeout after 5 seconds'));
+                    }, 5000);
+                    
+                    chrome.runtime.sendMessage({type: 'GET_USER_PROFILE'}, (response) => {
+                        clearTimeout(timeout);
+                        
+                        if (chrome.runtime.lastError) {
+                            reject(new Error(chrome.runtime.lastError.message));
+                            return;
+                        }
+                        
+                        resolve(response);
+                    });
+                });
+                
+                log(`✅ Profile fetch successful: ${JSON.stringify(response)}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Profile fetch failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testExtensionContext();
+                setTimeout(() => {
+                    testServiceWorkerPing();
+                }, 1000);
+            }, 500);
+        });
+    </script>
+</body>
+</html>

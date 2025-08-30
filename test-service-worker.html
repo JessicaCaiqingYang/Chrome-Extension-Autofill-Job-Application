@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Worker Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        .result {
+            background: white;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007cba;
+        }
+        .error {
+            border-left-color: #e74c3c;
+            background: #fee;
+        }
+        .success {
+            border-left-color: #27ae60;
+            background: #efe;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chrome Extension Service Worker Test</h1>
+    <p>This page helps test if the Job Application Autofill extension's service worker is responding correctly.</p>
+
+    <div class="test-section">
+        <h3>Service Worker Communication Tests</h3>
+        <button onclick="testPing()">Test PING</button>
+        <button onclick="testGetProfile()">Test Get Profile</button>
+        <button onclick="testGetCV()">Test Get CV Data</button>
+        <button onclick="testPageRelevance()">Test Page Relevance</button>
+        <button onclick="clearResults()">Clear Results</button>
+        <div id="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Sample Job Application Form</h3>
+        <p>Use this form to test the autofill functionality:</p>
+        
+        <form>
+            <div style="margin: 10px 0;">
+                <label>First Name:</label><br>
+                <input type="text" name="firstName" placeholder="Your first name">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Last Name:</label><br>
+                <input type="text" name="lastName" placeholder="Your last name">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Email:</label><br>
+                <input type="email" name="email" placeholder="your.email@example.com">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Phone:</label><br>
+                <input type="tel" name="phone" placeholder="(555) 123-4567">
+            </div>
+            <div style="margin: 10px 0;">
+                <label>Why are you interested in this position?</label><br>
+                <textarea name="coverLetter" rows="4" placeholder="Tell us about your interest..."></textarea>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function addResult(message, isError = false, isSuccess = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'result' + (isError ? ' error' : '') + (isSuccess ? ' success' : '');
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testPing() {
+            addResult('Testing service worker PING...');
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                    chrome.runtime.sendMessage({type: 'PING'}, (response) => {
+                        clearTimeout(timeout);
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                addResult(`PING successful: ${JSON.stringify(response)}`, false, true);
+            } catch (error) {
+                addResult(`PING failed: ${error.message}`, true);
+            }
+        }
+
+        async function testGetProfile() {
+            addResult('Testing GET_USER_PROFILE...');
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                    chrome.runtime.sendMessage({type: 'GET_USER_PROFILE'}, (response) => {
+                        clearTimeout(timeout);
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                addResult(`Profile response: ${JSON.stringify(response)}`, false, response.success);
+            } catch (error) {
+                addResult(`Profile test failed: ${error.message}`, true);
+            }
+        }
+
+        async function testGetCV() {
+            addResult('Testing GET_CV_DATA...');
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                    chrome.runtime.sendMessage({type: 'GET_CV_DATA'}, (response) => {
+                        clearTimeout(timeout);
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                addResult(`CV data response: ${JSON.stringify(response)}`, false, response.success);
+            } catch (error) {
+                addResult(`CV data test failed: ${error.message}`, true);
+            }
+        }
+
+        async function testPageRelevance() {
+            addResult('Testing CHECK_PAGE_RELEVANCE...');
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+                    chrome.runtime.sendMessage({type: 'CHECK_PAGE_RELEVANCE'}, (response) => {
+                        clearTimeout(timeout);
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(response);
+                        }
+                    });
+                });
+                addResult(`Page relevance: ${JSON.stringify(response)}`, false, true);
+            } catch (error) {
+                addResult(`Page relevance test failed: ${error.message}`, true);
+            }
+        }
+
+        // Test extension availability on page load
+        window.addEventListener('load', () => {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id) {
+                addResult('✅ Extension context available', false, true);
+                addResult(`Extension ID: ${chrome.runtime.id}`, false, true);
+            } else {
+                addResult('❌ Extension context not available - make sure extension is loaded', true);
+            }
+        });
+    </script>
+</body>
+</html>
