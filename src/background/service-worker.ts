@@ -236,9 +236,11 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
     console.log('Processing CV file:', file.name, 'Type:', fileType, 'Size:', file.size);
 
     // Extract text from file
-    const extractedText = await extractTextFromFile(file, fileType);
+    const startTime = Date.now();
+    const extractionResult = await extractTextFromFile(file, fileType);
+    const extractionTime = Date.now() - startTime;
 
-    if (!extractedText || extractedText.trim().length === 0) {
+    if (!extractionResult.text || extractionResult.text.trim().length === 0) {
       return { success: false, error: 'Could not extract text from the file. Please ensure the file is not corrupted.' };
     }
 
@@ -247,8 +249,14 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       fileName: file.name,
       fileSize: file.size,
       uploadDate: Date.now(),
-      extractedText: extractedText.trim(),
-      fileType
+      extractedText: extractionResult.text.trim(),
+      fileType,
+      extractionMetadata: {
+        pageCount: extractionResult.pageCount,
+        wordCount: extractionResult.text.trim().split(/\s+/).length,
+        extractionTime,
+        extractionMethod: fileType === 'pdf' ? 'pdf-parse' : 'mammoth'
+      }
     };
 
     // Save to storage
@@ -283,11 +291,173 @@ function getFileType(fileName: string): 'pdf' | 'docx' | null {
 }
 
 // Extract text from PDF or Word files
-async function extractTextFromFile(file: File, fileType: 'pdf' | 'docx'): Promise<string> {
-  // TODO: Implement proper PDF/DOCX parsing with browser-compatible libraries
-  // For now, return a placeholder message
-  console.warn('PDF/DOCX text extraction not yet implemented');
-  return `[File uploaded: ${file.name} (${fileType.toUpperCase()}) - Text extraction will be implemented in a future update]`;
+async function extractTextFromFile(file: File, fileType: 'pdf' | 'docx'): Promise<{ text: string; pageCount?: number }> {
+  console.log(`Starting text extraction for ${fileType.toUpperCase()} file:`, file.name);
+  
+  try {
+    let extractedText: string;
+    let pageCount: number | undefined;
+    
+    if (fileType === 'pdf') {
+      const pdfResult = await extractTextFromPDF(file);
+      extractedText = pdfResult.text;
+      pageCount = pdfResult.pageCount;
+    } else if (fileType === 'docx') {
+      // DOCX extraction will be implemented in a separate task
+      console.warn('DOCX text extraction not yet implemented');
+      return {
+        text: `[File uploaded: ${file.name} (DOCX) - Text extraction will be implemented in a future update]`,
+        pageCount: undefined
+      };
+    } else {
+      throw new Error(`Unsupported file type: ${fileType}`);
+    }
+    
+    // Clean and validate the extracted text
+    const cleanedText = cleanExtractedText(extractedText);
+    
+    if (!cleanedText || cleanedText.trim().length < 50) {
+      throw new Error('Extracted text is too short or empty. Please ensure the document contains readable text.');
+    }
+    
+    console.log(`Text extraction successful. Extracted ${cleanedText.length} characters from ${file.name}`);
+    return { text: cleanedText, pageCount };
+    
+  } catch (error) {
+    console.error('Error extracting text from file:', error);
+    
+    // Provide specific error messages based on error type
+    if (error instanceof Error) {
+      if (error.message.includes('Invalid PDF')) {
+        throw new Error('The PDF file appears to be corrupted or invalid. Please try uploading a different file.');
+      } else if (error.message.includes('password')) {
+        throw new Error('Password-protected PDF files are not supported. Please upload an unprotected PDF.');
+      } else if (error.message.includes('too short')) {
+        throw error; // Re-throw validation errors as-is
+      } else {
+        throw new Error(`Failed to extract text from ${fileType.toUpperCase()} file: ${error.message}`);
+      }
+    } else {
+      throw new Error(`Unknown error occurred while processing ${fileType.toUpperCase()} file.`);
+    }
+  }
+}
+
+// Extract text from PDF files using pdf-parse
+async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount: number }> {
+  try {
+    console.log('Converting PDF file to buffer for parsing...');
+    
+    // Convert File to ArrayBuffer, then to Buffer for pdf-parse
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    console.log(`PDF buffer created, size: ${buffer.length} bytes`);
+    
+    // Parse PDF with pdf-parse
+    const pdfData = await pdfParse(buffer, {
+      // Options for pdf-parse
+      max: 0, // Parse all pages (0 = no limit)
+      version: 'v1.10.100' // Specify version for compatibility
+    });
+    
+    console.log(`PDF parsing complete. Pages: ${pdfData.numpages}, Text length: ${pdfData.text.length}`);
+    
+    if (!pdfData.text || pdfData.text.trim().length === 0) {
+      throw new Error('No readable text found in the PDF. The document may be image-based or corrupted.');
+    }
+    
+    return {
+      text: pdfData.text,
+      pageCount: pdfData.numpages || 1
+    };
+    
+  } catch (error) {
+    console.error('PDF parsing error:', error);
+    
+    if (error instanceof Error) {
+      // Handle specific pdf-parse errors
+      if (error.message.includes('Invalid PDF structure')) {
+        throw new Error('Invalid PDF structure - the file may be corrupted.');
+      } else if (error.message.includes('Password required')) {
+        throw new Error('Password-protected PDF files are not supported.');
+      } else if (error.message.includes('No readable text')) {
+        throw error; // Re-throw our custom validation error
+      } else {
+        throw new Error(`PDF parsing failed: ${error.message}`);
+      }
+    } else {
+      throw new Error('Unknown error occurred during PDF parsing.');
+    }
+  }
+}
+
+// Clean and normalize extracted text
+function cleanExtractedText(text: string): string {
+  if (!text) {
+    return '';
+  }
+  
+  console.log('Cleaning extracted text...');
+  
+  // Remove excessive whitespace and normalize line breaks
+  let cleaned = text
+    // Normalize different types of line breaks to \n
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    // Remove excessive whitespace (more than 2 consecutive spaces)
+    .replace(/[ \t]{3,}/g, '  ')
+    // Remove excessive line breaks (more than 2 consecutive newlines)
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove trailing whitespace from each line
+    .split('\n')
+    .map(line => line.trimEnd())
+    .join('\n')
+    // Remove leading and trailing whitespace from the entire text
+    .trim();
+  
+  // Remove common document artifacts
+  cleaned = removeDocumentArtifacts(cleaned);
+  
+  console.log(`Text cleaning complete. Original length: ${text.length}, Cleaned length: ${cleaned.length}`);
+  
+  return cleaned;
+}
+
+// Remove common document artifacts like page numbers, headers, footers
+function removeDocumentArtifacts(text: string): string {
+  const lines = text.split('\n');
+  const cleanedLines: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Skip empty lines
+    if (line.length === 0) {
+      cleanedLines.push('');
+      continue;
+    }
+    
+    // Skip lines that look like page numbers (just numbers or "Page X")
+    if (/^(Page\s+)?\d+(\s+of\s+\d+)?$/i.test(line)) {
+      continue;
+    }
+    
+    // Skip lines that are just dates
+    if (/^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(line)) {
+      continue;
+    }
+    
+    // Skip very short lines that might be artifacts (less than 3 characters)
+    // unless they contain meaningful content like bullet points
+    if (line.length < 3 && !/[•\-\*]/.test(line)) {
+      continue;
+    }
+    
+    cleanedLines.push(line);
+  }
+  
+  return cleanedLines.join('\n');
 }
 
 // Autofill state management

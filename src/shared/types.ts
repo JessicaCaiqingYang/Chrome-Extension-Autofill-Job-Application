@@ -33,6 +33,13 @@ export interface CVData {
   uploadDate: number;
   extractedText: string;
   fileType: 'pdf' | 'docx';
+  extractionMetadata?: {
+    pageCount?: number;        // For PDFs
+    wordCount: number;
+    extractionTime: number;    // Processing time in ms
+    hasImages?: boolean;       // If document contains images
+    extractionMethod: string;  // 'pdf-parse' | 'mammoth'
+  };
 }
 
 export interface FieldMapping {
@@ -55,6 +62,34 @@ export enum FieldType {
   RESUME_TEXT = 'resumeText'
 }
 
+// CV Analysis interfaces for profile auto-filling
+export interface ParsedCVData {
+  personalInfo: Partial<UserProfile['personalInfo']>;
+  workInfo: Partial<UserProfile['workInfo']>;
+  confidence: {
+    [key: string]: number; // Confidence score for each extracted field (0-1)
+  };
+  rawMatches: {
+    [key: string]: string[]; // All potential matches found for each field
+  };
+}
+
+export interface CVAnalysisResult {
+  extractedFields: ParsedCVData;
+  analysisMetadata: {
+    processingTime: number;
+    sectionsFound: string[];
+    totalMatches: number;
+    averageConfidence: number;
+  };
+  suggestions: {
+    field: keyof UserProfile['personalInfo'] | keyof UserProfile['workInfo'];
+    value: string;
+    confidence: number;
+    source: string; // Which part of the CV this came from
+  }[];
+}
+
 // Message types for inter-component communication
 export interface Message {
   type: MessageType;
@@ -69,7 +104,10 @@ export enum MessageType {
   TOGGLE_AUTOFILL = 'TOGGLE_AUTOFILL',
   TRIGGER_AUTOFILL = 'TRIGGER_AUTOFILL',
   AUTOFILL_COMPLETE = 'AUTOFILL_COMPLETE',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  PARSE_CV_FOR_PROFILE = 'PARSE_CV_FOR_PROFILE',
+  CV_ANALYSIS_COMPLETE = 'CV_ANALYSIS_COMPLETE',
+  AUTO_FILL_PROFILE = 'AUTO_FILL_PROFILE'
 }
 
 // Storage keys for Chrome storage
