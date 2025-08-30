@@ -33,8 +33,6 @@ export interface CVData {
   uploadDate: number;
   extractedText: string;
   fileType: 'pdf' | 'docx';
-  fileBlob: string; // Base64 encoded blob data for Chrome storage compatibility
-  mimeType: string; // MIME type for proper file upload
 }
 
 export interface FieldMapping {
@@ -42,14 +40,6 @@ export interface FieldMapping {
   fieldType: FieldType;
   confidence: number;
   value: string;
-}
-
-export interface FileUploadMapping {
-  element: HTMLInputElement;
-  fieldType: FileUploadType;
-  confidence: number;
-  acceptedTypes: string[];
-  maxSize?: number;
 }
 
 export enum FieldType {
@@ -63,13 +53,6 @@ export enum FieldType {
   POSTCODE = 'postCode',
   COVER_LETTER = 'coverLetter',
   RESUME_TEXT = 'resumeText'
-}
-
-export enum FileUploadType {
-  CV_RESUME = 'cvResume',
-  COVER_LETTER_FILE = 'coverLetterFile',
-  PORTFOLIO = 'portfolio',
-  OTHER = 'other'
 }
 
 // Message types for inter-component communication

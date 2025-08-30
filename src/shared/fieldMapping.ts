@@ -1,5 +1,5 @@
 // Form field detection and mapping logic
-import { FieldMapping, FieldType, UserProfile, FileUploadMapping, FileUploadType } from './types';
+import { FieldMapping, FieldType, UserProfile } from './types';
 
 export const fieldMapping = {
   // Detect all fillable form fields on the current page
@@ -185,41 +185,17 @@ export const fieldMapping = {
     
     const identifierText = identifiers.join(' ');
     
-    // Find the best matching field type with improved scoring
+    // Find the best matching field type
     let bestMatch: FieldType | null = null;
     let bestScore = 0;
     
     Object.entries(patterns).forEach(([fieldType, keywords]) => {
-      let score = 0;
-      let hasExactMatch = false;
-      
-      keywords.forEach(keyword => {
+      const score = keywords.reduce((acc, keyword) => {
         if (identifierText.includes(keyword)) {
-          // Give higher priority to exact matches and compound terms
-          if (keyword.includes('_') || keyword.includes(' ') || keyword.length > 6) {
-            score += keyword.length * 2; // Boost compound/specific terms
-            hasExactMatch = true;
-          } else {
-            score += keyword.length;
-          }
+          return acc + keyword.length; // Longer matches get higher scores
         }
-      });
-      
-      // Special handling for email vs address conflict
-      if (fieldType === FieldType.EMAIL && identifierText.includes('email')) {
-        score += 20; // Strong boost for email fields
-        hasExactMatch = true;
-      }
-      
-      // Penalize generic matches when more specific ones exist
-      if (fieldType === FieldType.ADDRESS && identifierText.includes('email')) {
-        score = Math.max(0, score - 15); // Reduce score for address when email is present
-      }
-      
-      // Prefer exact matches over partial matches
-      if (hasExactMatch) {
-        score += 10;
-      }
+        return acc;
+      }, 0);
       
       if (score > bestScore) {
         bestScore = score;
@@ -239,26 +215,15 @@ export const fieldMapping = {
     
     // Boost confidence for exact matches
     const exactMatches: Partial<Record<FieldType, string[]>> = {
-      [FieldType.EMAIL]: ['email', 'email_address', 'emailaddress'],
-      [FieldType.PHONE]: ['phone', 'tel', 'telephone'],
+      [FieldType.EMAIL]: ['email'],
+      [FieldType.PHONE]: ['phone', 'tel'],
       [FieldType.FIRST_NAME]: ['firstname', 'first_name'],
-      [FieldType.LAST_NAME]: ['lastname', 'last_name'],
-      [FieldType.ADDRESS]: ['street_address', 'address_line']
+      [FieldType.LAST_NAME]: ['lastname', 'last_name']
     };
     
     const exactKeywords = exactMatches[fieldType] || [];
     if (exactKeywords.some((keyword: string) => identifierText.includes(keyword))) {
       confidence += 0.3;
-    }
-    
-    // Special boost for email fields when "email" is present
-    if (fieldType === FieldType.EMAIL && identifierText.includes('email')) {
-      confidence += 0.4; // Strong confidence boost for email
-    }
-    
-    // Penalize address fields when email context is present
-    if (fieldType === FieldType.ADDRESS && identifierText.includes('email')) {
-      confidence -= 0.5; // Strong penalty to prevent email/address confusion
     }
     
     // Boost confidence for multiple identifier sources
@@ -343,267 +308,5 @@ export const fieldMapping = {
     setTimeout(() => {
       element.style.backgroundColor = '';
     }, 2000);
-  },
-
-  // Detect file upload fields on the current page
-  detectFileUploadFields(): HTMLInputElement[] {
-    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
-    const elements: HTMLInputElement[] = [];
-    
-    fileInputs.forEach(element => {
-      // Filter out hidden or disabled file inputs
-      if (this.isFieldFillable(element)) {
-        elements.push(element);
-      }
-    });
-    
-    return elements;
-  },
-
-  // Map file upload fields to upload types based on context and attributes
-  mapFileUploadFields(elements: HTMLInputElement[]): FileUploadMapping[] {
-    const mappings: FileUploadMapping[] = [];
-    
-    elements.forEach(element => {
-      const mapping = this.identifyFileUploadType(element);
-      if (mapping) {
-        mappings.push(mapping);
-      }
-    });
-    
-    // Sort by confidence score (highest first)
-    return mappings.sort((a, b) => b.confidence - a.confidence);
-  },
-
-  // Identify file upload type and create mapping
-  identifyFileUploadType(element: HTMLInputElement): FileUploadMapping | null {
-    // Get all possible identifiers for the file input
-    const identifiers = this.getFieldIdentifiers(element);
-    const fileUploadType = this.matchFileUploadType(identifiers);
-    
-    if (!fileUploadType) {
-      return null;
-    }
-    
-    // Parse accept attribute for allowed file types
-    const acceptedTypes = this.parseAcceptAttribute(element);
-    
-    // Extract max file size if specified
-    const maxSize = this.extractMaxFileSize(element);
-    
-    const confidence = this.calculateFileUploadConfidence(identifiers, fileUploadType, acceptedTypes);
-    
-    return {
-      element,
-      fieldType: fileUploadType,
-      confidence,
-      acceptedTypes,
-      maxSize
-    };
-  },
-
-  // Match field identifiers to file upload types
-  matchFileUploadType(identifiers: string[]): FileUploadType | null {
-    const patterns = {
-      [FileUploadType.CV_RESUME]: [
-        'resume', 'cv', 'curriculum', 'curriculum_vitae', 'curriculum vitae',
-        'resume_file', 'cv_file', 'resumefile', 'cvfile', 'upload_resume',
-        'upload_cv', 'attach_resume', 'attach_cv', 'your_resume', 'your_cv',
-        'resume_upload', 'cv_upload', 'resume attachment', 'cv attachment'
-      ],
-      [FileUploadType.COVER_LETTER_FILE]: [
-        'cover_letter', 'coverletter', 'cover letter', 'cover_letter_file',
-        'coverletterfile', 'upload_cover_letter', 'attach_cover_letter',
-        'cover_letter_upload', 'cover letter upload', 'cover letter attachment'
-      ],
-      [FileUploadType.PORTFOLIO]: [
-        'portfolio', 'portfolio_file', 'portfoliofile', 'work_samples',
-        'samples', 'portfolio_upload', 'upload_portfolio', 'attach_portfolio',
-        'portfolio attachment', 'work portfolio'
-      ],
-      [FileUploadType.OTHER]: [
-        'document', 'file', 'attachment', 'upload', 'additional_documents',
-        'supporting_documents', 'other_documents'
-      ]
-    };
-    
-    const identifierText = identifiers.join(' ');
-    
-    // Find the best matching file upload type
-    let bestMatch: FileUploadType | null = null;
-    let bestScore = 0;
-    
-    Object.entries(patterns).forEach(([uploadType, keywords]) => {
-      const score = keywords.reduce((acc, keyword) => {
-        if (identifierText.includes(keyword)) {
-          return acc + keyword.length; // Longer matches get higher scores
-        }
-        return acc;
-      }, 0);
-      
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = uploadType as FileUploadType;
-      }
-    });
-    
-    return bestMatch;
-  },
-
-  // Parse the accept attribute to get allowed file types
-  parseAcceptAttribute(element: HTMLInputElement): string[] {
-    const accept = element.getAttribute('accept');
-    if (!accept) {
-      return [];
-    }
-    
-    // Split by comma and clean up whitespace
-    return accept.split(',').map(type => type.trim().toLowerCase());
-  },
-
-  // Extract maximum file size from various sources
-  extractMaxFileSize(element: HTMLInputElement): number | undefined {
-    // Check data attributes
-    const dataSizeAttr = element.getAttribute('data-max-size') || 
-                        element.getAttribute('data-maxsize') ||
-                        element.getAttribute('max-size');
-    
-    if (dataSizeAttr) {
-      const size = parseInt(dataSizeAttr, 10);
-      if (!isNaN(size)) {
-        return size;
-      }
-    }
-    
-    // Look for size information in nearby text
-    const nearbyText = this.getNearbyText(element);
-    if (nearbyText) {
-      // Look for patterns like "max 5MB", "up to 10MB", "5 MB maximum"
-      const sizePattern = /(?:max|maximum|up to|limit)\s*:?\s*(\d+)\s*(mb|kb|gb)/i;
-      const match = nearbyText.match(sizePattern);
-      
-      if (match) {
-        const size = parseInt(match[1], 10);
-        const unit = match[2].toLowerCase();
-        
-        if (!isNaN(size)) {
-          switch (unit) {
-            case 'kb':
-              return size * 1024;
-            case 'mb':
-              return size * 1024 * 1024;
-            case 'gb':
-              return size * 1024 * 1024 * 1024;
-            default:
-              return size;
-          }
-        }
-      }
-    }
-    
-    return undefined;
-  },
-
-  // Calculate confidence score for file upload field mapping
-  calculateFileUploadConfidence(
-    identifiers: string[], 
-    fileUploadType: FileUploadType, 
-    acceptedTypes: string[]
-  ): number {
-    const identifierText = identifiers.join(' ');
-    
-    // Base confidence
-    let confidence = 0.4;
-    
-    // Boost confidence for exact matches
-    const exactMatches: Partial<Record<FileUploadType, string[]>> = {
-      [FileUploadType.CV_RESUME]: ['resume', 'cv', 'curriculum'],
-      [FileUploadType.COVER_LETTER_FILE]: ['cover_letter', 'coverletter'],
-      [FileUploadType.PORTFOLIO]: ['portfolio', 'work_samples']
-    };
-    
-    const exactKeywords = exactMatches[fileUploadType] || [];
-    if (exactKeywords.some((keyword: string) => identifierText.includes(keyword))) {
-      confidence += 0.4;
-    }
-    
-    // Boost confidence based on accept attribute relevance
-    if (acceptedTypes.length > 0) {
-      const documentTypes = ['.pdf', '.doc', '.docx', 'application/pdf', 
-                           'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      
-      const hasDocumentTypes = acceptedTypes.some(type => 
-        documentTypes.some(docType => type.includes(docType))
-      );
-      
-      if (hasDocumentTypes) {
-        confidence += 0.2;
-      }
-    }
-    
-    // Boost confidence for multiple identifier sources
-    if (identifiers.length > 2) {
-      confidence += 0.1;
-    }
-    
-    // Reduce confidence for very generic terms when no specific context
-    const genericTerms = ['file', 'upload', 'attachment'];
-    const hasOnlyGeneric = identifiers.every(id => 
-      genericTerms.some(term => id.includes(term))
-    );
-    
-    if (hasOnlyGeneric && fileUploadType === FileUploadType.OTHER) {
-      confidence -= 0.2;
-    }
-    
-    // Boost confidence for CV/Resume fields with document-specific accept types
-    if (fileUploadType === FileUploadType.CV_RESUME && acceptedTypes.length > 0) {
-      const cvRelevantTypes = ['.pdf', '.doc', '.docx', 'application/pdf'];
-      const hasCvTypes = acceptedTypes.some(type => 
-        cvRelevantTypes.some(cvType => type.includes(cvType))
-      );
-      
-      if (hasCvTypes) {
-        confidence += 0.2;
-      }
-    }
-    
-    return Math.min(1.0, Math.max(0.0, confidence));
-  },
-
-  // Check if a file upload field is compatible with CV upload
-  isFileUploadCompatibleWithCV(mapping: FileUploadMapping, cvData: { mimeType: string; fileSize: number }): boolean {
-    // Check file type compatibility
-    if (mapping.acceptedTypes.length > 0) {
-      const isTypeAccepted = mapping.acceptedTypes.some(acceptType => {
-        // Handle MIME types
-        if (acceptType.includes('/')) {
-          return cvData.mimeType === acceptType;
-        }
-        
-        // Handle file extensions
-        if (acceptType.startsWith('.')) {
-          const extension = acceptType.toLowerCase();
-          return (
-            (extension === '.pdf' && cvData.mimeType === 'application/pdf') ||
-            (extension === '.doc' && cvData.mimeType === 'application/msword') ||
-            (extension === '.docx' && cvData.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-          );
-        }
-        
-        return false;
-      });
-      
-      if (!isTypeAccepted) {
-        return false;
-      }
-    }
-    
-    // Check file size compatibility
-    if (mapping.maxSize && cvData.fileSize > mapping.maxSize) {
-      return false;
-    }
-    
-    return true;
   }
 };
