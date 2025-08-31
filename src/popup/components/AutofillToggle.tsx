@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { messaging } from '../../shared/messaging';
 import { CVData } from '../../shared/types';
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  shadows,
+  transitions
+} from '../../shared/design-system';
+import { useNotificationHelpers } from '../hooks/useNotificationHelpers';
 
 interface AutofillToggleProps {
   onToggleChange?: (enabled: boolean) => void;
@@ -10,8 +19,15 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
   const [isEnabled, setIsEnabled] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [error, setError] = useState<string>('');
   const [cvData, setCvData] = useState<CVData | null>(null);
+  const [showHelp, setShowHelp] = useState<boolean>(false);
+
+  const {
+    showSuccess,
+    showError,
+    showAutofillSuccess,
+    showAutofillError
+  } = useNotificationHelpers();
 
   // Load current autofill status on component mount
   useEffect(() => {
@@ -21,7 +37,6 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
 
   const loadAutofillStatus = async () => {
     setIsLoading(true);
-    setError('');
 
     try {
       // Get current user profile to check autofill preference
@@ -33,7 +48,7 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
       }
     } catch (error) {
       console.error('Error loading autofill status:', error);
-      setError('Error loading autofill status');
+      showError('Failed to load autofill status', 'Using default settings');
       // Default to enabled on error
       setIsEnabled(true);
     } finally {
@@ -55,7 +70,6 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
 
     const newState = !isEnabled;
     setIsUpdating(true);
-    setError('');
 
     try {
       // Update autofill status through service worker
@@ -63,6 +77,14 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
 
       if (result && result.success) {
         setIsEnabled(newState);
+
+        // Show success notification with visual feedback
+        showSuccess(
+          newState ? 'Autofill Enabled' : 'Autofill Disabled',
+          newState
+            ? 'Extension will now automatically fill job application forms'
+            : 'Extension will not fill forms automatically'
+        );
 
         if (onToggleChange) {
           onToggleChange(newState);
@@ -72,219 +94,420 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
       }
     } catch (error) {
       console.error('Error toggling autofill:', error);
-      setError('Error updating autofill status. Please try again.');
-
-      // Revert the state on error
-      // Note: We don't change isEnabled here since the toggle failed
+      showError(
+        'Toggle Failed',
+        'Could not update autofill status. Please try again.'
+      );
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const getStatusText = (): string => {
-    if (isLoading) return 'Loading...';
-    if (isUpdating) return 'Updating...';
-    return isEnabled ? 'Autofill is ON' : 'Autofill is OFF';
+  // Enhanced style utilities
+  const getToggleStyles = () => {
+    const baseStyles = {
+      position: 'relative' as const,
+      width: '64px', // Larger, more accessible size
+      height: '36px',
+      borderRadius: borderRadius.full,
+      cursor: (isLoading || isUpdating) ? 'not-allowed' : 'pointer',
+      transition: transitions.normal,
+      border: '2px solid transparent',
+      outline: 'none',
+    };
+
+    if (isLoading || isUpdating) {
+      return {
+        ...baseStyles,
+        backgroundColor: colors.neutral[300],
+        cursor: 'not-allowed',
+      };
+    }
+
+    return {
+      ...baseStyles,
+      backgroundColor: isEnabled ? colors.success[500] : colors.neutral[400],
+      '&:hover': {
+        backgroundColor: isEnabled ? colors.success[600] : colors.neutral[500],
+        transform: 'scale(1.02)',
+      },
+      '&:focus': {
+        borderColor: colors.primary[600],
+        boxShadow: `0 0 0 3px ${colors.primary[200]}`,
+      },
+    };
   };
 
-  const getStatusColor = (): string => {
-    if (isLoading || isUpdating) return '#95a5a6';
-    return isEnabled ? '#27ae60' : '#e74c3c';
-  };
+  const getKnobStyles = () => ({
+    position: 'absolute' as const,
+    top: '2px',
+    left: isEnabled ? '30px' : '2px', // Adjusted for larger toggle
+    width: '30px', // Larger knob
+    height: '30px',
+    backgroundColor: colors.neutral[50],
+    borderRadius: borderRadius.full,
+    transition: transitions.normal,
+    boxShadow: shadows.md,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  });
 
-  const getToggleColor = (): string => {
-    if (isLoading || isUpdating) return '#bdc3c7';
-    return isEnabled ? '#27ae60' : '#95a5a6';
+  const getStatusIndicatorStyles = () => {
+    const baseStyles = {
+      padding: `${spacing[3]} ${spacing[4]}`,
+      borderRadius: borderRadius.lg,
+      fontSize: typography.fontSize.sm,
+      fontWeight: typography.fontWeight.medium,
+      display: 'flex',
+      alignItems: 'center',
+      gap: spacing[2],
+      border: '1px solid',
+      transition: transitions.normal,
+    };
+
+    if (isLoading || isUpdating) {
+      return {
+        ...baseStyles,
+        backgroundColor: colors.neutral[100],
+        borderColor: colors.neutral[300],
+        color: colors.neutral[600],
+      };
+    }
+
+    if (isEnabled) {
+      return {
+        ...baseStyles,
+        backgroundColor: colors.success[50],
+        borderColor: colors.success[200],
+        color: colors.success[800],
+      };
+    }
+
+    return {
+      ...baseStyles,
+      backgroundColor: colors.neutral[100],
+      borderColor: colors.neutral[300],
+      color: colors.neutral[600],
+    };
   };
 
   if (isLoading) {
     return (
-      <div style={{ padding: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: '14px', color: '#666' }}>Loading autofill status...</div>
+      <div style={{
+        padding: spacing[4],
+        textAlign: 'center',
+        fontFamily: typography.fontFamily.system
+      }}>
+        <div style={{
+          fontSize: typography.fontSize.sm,
+          color: colors.neutral[500],
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: spacing[2]
+        }}>
+          <div style={{
+            width: '16px',
+            height: '16px',
+            border: `2px solid ${colors.neutral[300]}`,
+            borderTop: `2px solid ${colors.primary[600]}`,
+            borderRadius: borderRadius.full,
+            animation: 'spin 1s linear infinite'
+          }} />
+          Loading autofill status...
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '16px' }}>
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Autofill Control</h3>
+    <div style={{
+      padding: spacing[4],
+      fontFamily: typography.fontFamily.system
+    }}>
+      {/* Header with help toggle */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: spacing[4]
+      }}>
+        <h3 style={{
+          margin: 0,
+          fontSize: typography.fontSize.base,
+          fontWeight: typography.fontWeight.semibold,
+          color: colors.neutral[900]
+        }}>
+          Autofill Control
+        </h3>
 
-      {/* Toggle Switch Container */}
-      <div
-        style={{
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: spacing[1],
+            borderRadius: borderRadius.base,
+            color: colors.neutral[500],
+            fontSize: typography.fontSize.sm,
+            transition: transitions.fast,
+          }}
+          title="Toggle help information"
+        >
+          {showHelp ? '✕' : '?'}
+        </button>
+      </div>
+
+      {/* Main Toggle Card */}
+      <div style={{
+        backgroundColor: colors.neutral[50],
+        border: `1px solid ${colors.neutral[200]}`,
+        borderRadius: borderRadius.lg,
+        padding: spacing[4],
+        boxShadow: shadows.sm,
+        transition: transitions.normal,
+      }}>
+        <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px',
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          backgroundColor: '#f9f9f9'
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          {/* Status Text */}
+          marginBottom: spacing[3]
+        }}>
+          <div style={{ flex: 1 }}>
+            {/* Status Text */}
+            <div style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.semibold,
+              color: isLoading || isUpdating
+                ? colors.neutral[600]
+                : isEnabled
+                  ? colors.success[700]
+                  : colors.neutral[700],
+              marginBottom: spacing[1],
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing[2]
+            }}>
+              {isLoading && (
+                <div style={{
+                  width: '14px',
+                  height: '14px',
+                  border: `2px solid ${colors.neutral[300]}`,
+                  borderTop: `2px solid ${colors.primary[600]}`,
+                  borderRadius: borderRadius.full,
+                  animation: 'spin 1s linear infinite'
+                }} />
+              )}
+              {isUpdating && (
+                <div style={{
+                  width: '14px',
+                  height: '14px',
+                  border: `2px solid ${colors.neutral[300]}`,
+                  borderTop: `2px solid ${colors.warning[600]}`,
+                  borderRadius: borderRadius.full,
+                  animation: 'spin 1s linear infinite'
+                }} />
+              )}
+              {isLoading
+                ? 'Loading...'
+                : isUpdating
+                  ? 'Updating...'
+                  : isEnabled
+                    ? 'Autofill is ON'
+                    : 'Autofill is OFF'
+              }
+            </div>
+
+            {/* Description */}
+            <div style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.neutral[600],
+              lineHeight: typography.lineHeight.normal
+            }}>
+              {isEnabled
+                ? 'Extension will automatically fill job application forms'
+                : 'Extension will not fill forms automatically'
+              }
+            </div>
+
+            {/* CV Upload Status */}
+            {isEnabled && (
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.neutral[500],
+                marginTop: spacing[2],
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing[1]
+              }}>
+                {cvData ? (
+                  <>
+                    <span style={{ color: colors.success[600] }}>📄</span>
+                    <span style={{ color: colors.success[700] }}>
+                      CV auto-upload enabled ({cvData.fileName})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ color: colors.warning[600] }}>⚠️</span>
+                    <span style={{ color: colors.warning[700] }}>
+                      CV auto-upload disabled (no CV uploaded)
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Enhanced Toggle Switch */}
           <div
-            style={{
-              fontSize: '16px',
-              fontWeight: '500',
-              color: getStatusColor(),
-              marginBottom: '4px'
+            onClick={handleToggle}
+            style={getToggleStyles()}
+            role="switch"
+            aria-checked={isEnabled}
+            aria-label={`Autofill is ${isEnabled ? 'enabled' : 'disabled'}`}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleToggle();
+              }
             }}
           >
-            {getStatusText()}
-          </div>
-
-          {/* Description */}
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            {isEnabled
-              ? 'Extension will automatically fill job application forms'
-              : 'Extension will not fill forms automatically'
-            }
-          </div>
-
-          {/* CV Upload Status */}
-          {isEnabled && (
-            <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-              {cvData ? (
-                <span style={{ color: '#27ae60' }}>
-                  📄 CV auto-upload enabled ({cvData.fileName})
-                </span>
+            {/* Toggle Knob with Icon */}
+            <div style={getKnobStyles()}>
+              {isLoading || isUpdating ? (
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  border: `1px solid ${colors.neutral[400]}`,
+                  borderTop: `1px solid ${colors.primary[600]}`,
+                  borderRadius: borderRadius.full,
+                  animation: 'spin 1s linear infinite'
+                }} />
               ) : (
-                <span style={{ color: '#e67e22' }}>
-                  ⚠ CV auto-upload disabled (no CV uploaded)
+                <span style={{
+                  fontSize: '12px',
+                  color: isEnabled ? colors.success[600] : colors.neutral[400]
+                }}>
+                  {isEnabled ? '✓' : '✕'}
                 </span>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Toggle Switch */}
-        <div
-          onClick={handleToggle}
-          style={{
-            position: 'relative',
-            width: '50px',
-            height: '28px',
-            backgroundColor: getToggleColor(),
-            borderRadius: '14px',
-            cursor: (isLoading || isUpdating) ? 'not-allowed' : 'pointer',
-            transition: 'background-color 0.3s ease',
-            marginLeft: '16px'
-          }}
-        >
-          {/* Toggle Knob */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '2px',
-              left: isEnabled ? '24px' : '2px',
-              width: '24px',
-              height: '24px',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              transition: 'left 0.3s ease',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}
-          />
+          </div>
         </div>
       </div>
 
       {/* Status Indicator */}
-      <div
-        style={{
-          marginTop: '12px',
-          padding: '8px 12px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          textAlign: 'center',
-          backgroundColor: isEnabled ? '#e8f5e8' : '#ffeaea',
-          color: isEnabled ? '#2d5a2d' : '#8b2635',
-          border: `1px solid ${isEnabled ? '#c3e6c3' : '#f5c6cb'}`
-        }}
-      >
-        {isEnabled ? (
-          <>
-            <span style={{ marginRight: '4px' }}>✓</span>
-            Ready to autofill forms on job sites
-          </>
-        ) : (
-          <>
-            <span style={{ marginRight: '4px' }}>⏸</span>
-            Autofill is paused - forms will not be filled
-          </>
-        )}
+      <div style={{
+        ...getStatusIndicatorStyles(),
+        marginTop: spacing[3]
+      }}>
+        <span>
+          {isLoading || isUpdating
+            ? '⏳'
+            : isEnabled
+              ? '✅'
+              : '⏸️'
+          }
+        </span>
+        <span>
+          {isLoading
+            ? 'Loading autofill status...'
+            : isUpdating
+              ? 'Updating settings...'
+              : isEnabled
+                ? 'Ready to autofill forms on job sites'
+                : 'Autofill is paused - forms will not be filled'
+          }
+        </span>
       </div>
 
-      {/* Additional Info */}
-      <div style={{ marginTop: '12px', fontSize: '11px', color: '#666', lineHeight: '1.4' }}>
-        <div style={{ marginBottom: '4px' }}>
-          <strong>How it works:</strong>
-        </div>
-        <ul style={{ margin: '0', paddingLeft: '16px' }}>
-          <li>When enabled, the extension scans job application pages</li>
-          <li>Automatically fills detected form fields with your profile data</li>
-          <li>Automatically uploads your CV to "upload resume" or "upload cv" fields</li>
-          <li>Works across different job sites and application forms</li>
-          <li>You can toggle this on/off anytime</li>
-        </ul>
-      </div>
+      {/* Contextual Help Text */}
+      {showHelp && (
+        <div style={{
+          marginTop: spacing[4],
+          padding: spacing[4],
+          backgroundColor: colors.primary[50],
+          border: `1px solid ${colors.primary[200]}`,
+          borderRadius: borderRadius.lg,
+          fontSize: typography.fontSize.sm,
+          color: colors.primary[800],
+          lineHeight: typography.lineHeight.relaxed
+        }}>
+          <div style={{
+            fontWeight: typography.fontWeight.semibold,
+            marginBottom: spacing[2],
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[2]
+          }}>
+            <span>💡</span>
+            How Autofill Works
+          </div>
+          <ul style={{
+            margin: 0,
+            paddingLeft: spacing[4],
+            listStyle: 'disc'
+          }}>
+            <li>Scans job application pages for form fields</li>
+            <li>Automatically fills detected fields with your profile data</li>
+            <li>Uploads your CV to file upload fields when available</li>
+            <li>Works across different job sites and application forms</li>
+            <li>Can be toggled on/off anytime for full control</li>
+          </ul>
 
-      {/* Error Message */}
-      {error && (
-        <div
-          style={{
-            marginTop: '12px',
-            padding: '8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            backgroundColor: '#fee',
-            color: '#c33',
-            border: '1px solid #fcc'
-          }}
-        >
-          {error}
+          <div style={{
+            marginTop: spacing[3],
+            padding: spacing[2],
+            backgroundColor: colors.primary[100],
+            borderRadius: borderRadius.base,
+            fontSize: typography.fontSize.xs,
+            color: colors.primary[700]
+          }}>
+            <strong>Tip:</strong> Make sure your profile is complete and CV is uploaded for best results.
+          </div>
         </div>
       )}
 
       {/* Manual Trigger Button */}
-      {isEnabled && !isLoading && !isUpdating && (
-        <div style={{ marginTop: '16px' }}>
+      {isEnabled && !isLoading && (
+        <div style={{ marginTop: spacing[4] }}>
           <button
             onClick={async () => {
               setIsUpdating(true);
               try {
                 const result = await messaging.triggerAutofill();
                 if (result && result.success) {
-                  setError('');
-                  // Show success feedback briefly with CV upload info
                   const filledFields = result.data?.filled || 0;
                   const fileUploads = result.data?.fileUploadsCompleted || 0;
-                  let successMsg = `Autofill completed! Filled ${filledFields} fields.`;
-                  
+
+                  showAutofillSuccess(filledFields);
+
                   if (fileUploads > 0) {
-                    successMsg += ` Uploaded CV to ${fileUploads} file field${fileUploads > 1 ? 's' : ''}.`;
+                    showSuccess(
+                      'CV Upload Complete',
+                      `Uploaded CV to ${fileUploads} file field${fileUploads > 1 ? 's' : ''}`
+                    );
                   }
-                  
-                  setError(successMsg);
-                  setTimeout(() => setError(''), 4000);
                 } else {
                   throw new Error(result?.error || 'Autofill failed');
                 }
               } catch (error) {
                 console.error('Error triggering autofill:', error);
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                
+
                 if (errorMessage.includes('No web page tabs found')) {
-                  setError('Please open a job application website in a new tab and try again.');
+                  showAutofillError('Please open a job application website in a new tab and try again.');
                 } else if (errorMessage.includes('Cannot autofill on this page')) {
-                  setError('Cannot autofill on this page. Please navigate to a job application website.');
+                  showAutofillError('Cannot autofill on this page. Please navigate to a job application website.');
                 } else if (errorMessage.includes('No user profile found')) {
-                  setError('Please complete your profile first in the Profile tab.');
+                  showAutofillError('Please complete your profile first in the Profile tab.');
                 } else {
-                  setError('Error triggering autofill. Make sure you are on a job application page.');
+                  showAutofillError('Make sure you are on a job application page and try again.');
                 }
-                
-                setTimeout(() => setError(''), 7000);
               } finally {
                 setIsUpdating(false);
               }
@@ -292,19 +515,48 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
             disabled={isUpdating}
             style={{
               width: '100%',
-              padding: '10px',
-              backgroundColor: isUpdating ? '#95a5a6' : '#3498db',
-              color: 'white',
+              padding: `${spacing[3]} ${spacing[4]}`,
+              backgroundColor: isUpdating ? colors.neutral[400] : colors.primary[600],
+              color: colors.neutral[50],
               border: 'none',
-              borderRadius: '4px',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: isUpdating ? 'not-allowed' : 'pointer'
+              borderRadius: borderRadius.lg,
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.medium,
+              cursor: isUpdating ? 'not-allowed' : 'pointer',
+              transition: transitions.normal,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
+              boxShadow: shadows.sm,
             }}
           >
-            {isUpdating ? '⏳ Filling...' : '🚀 Fill Current Page'}
+            {isUpdating ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: `2px solid ${colors.neutral[300]}`,
+                  borderTop: `2px solid ${colors.neutral[50]}`,
+                  borderRadius: borderRadius.full,
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Filling Forms...
+              </>
+            ) : (
+              <>
+                🚀 Fill Current Page
+              </>
+            )}
           </button>
-          <div style={{ fontSize: '11px', color: '#666', textAlign: 'center', marginTop: '4px' }}>
+
+          <div style={{
+            fontSize: typography.fontSize.xs,
+            color: colors.neutral[500],
+            textAlign: 'center',
+            marginTop: spacing[2],
+            lineHeight: typography.lineHeight.normal
+          }}>
             Fills forms and uploads CV on the active web page tab
           </div>
         </div>
