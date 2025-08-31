@@ -5,6 +5,7 @@ import { fieldMapping } from '../shared/fieldMapping';
 import { FieldType, FieldMapping, FileUploadMapping, FileUploadType, MessageType, Message } from '../shared/types';
 import { messaging } from '../shared/messaging';
 import { blobUtils } from '../shared/storage';
+import { visualFeedback } from '../shared/visualFeedback';
 
 console.log('Job Application Autofill content script loaded');
 
@@ -43,6 +44,7 @@ class FormDetectionSystem {
     this.initializeDetection();
     this.setupMessageListener();
     this.injectStyles();
+    this.setupCleanup();
   }
 
   /**
@@ -114,6 +116,11 @@ class FormDetectionSystem {
       await this.detectAndClassifyFileUploadFields();
 
       console.log(`Detected ${this.detectedFields.length} fillable form fields and ${this.fileUploadFields.length} file upload fields`);
+
+      // Show visual feedback for detected fields
+      if (this.fieldMappings.length > 0 || this.fileUploadMappings.length > 0) {
+        visualFeedback.highlightDetectedFields(this.fieldMappings, this.fileUploadMappings);
+      }
 
       return this.detectedFields;
     } finally {
@@ -1080,26 +1087,42 @@ class FormDetectionSystem {
 
     console.log(`Attempting to fill ${highConfidenceFields.length} fields with confidence > 0.4`);
 
-    for (const mapping of highConfidenceFields) {
+    // Show initial progress
+    visualFeedback.showFieldCounter(highConfidenceFields.length, 0, 'filling');
+
+    for (let i = 0; i < highConfidenceFields.length; i++) {
+      const mapping = highConfidenceFields[i];
+      
       try {
+        // Show field-specific progress
+        visualFeedback.showFieldProgress(mapping.element, mapping.fieldType, mapping.value);
+        
         const success = await this.fillSingleField(mapping);
         if (success) {
           filled++;
-          this.addVisualFeedback(mapping.element, 'success');
+          visualFeedback.markFieldSuccess(mapping.element);
         } else {
-          errors.push(`Failed to fill ${mapping.fieldType} field`);
-          this.addVisualFeedback(mapping.element, 'error');
+          const errorMsg = `Failed to fill ${mapping.fieldType} field`;
+          errors.push(errorMsg);
+          visualFeedback.markFieldError(mapping.element, errorMsg);
         }
       } catch (error) {
         const errorMessage = `Error filling ${mapping.fieldType}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         errors.push(errorMessage);
         console.error(errorMessage);
-        this.addVisualFeedback(mapping.element, 'error');
+        visualFeedback.markFieldError(mapping.element, errorMessage);
       }
 
+      // Update progress counter
+      visualFeedback.updateFieldCounter(highConfidenceFields.length, filled);
+
       // Small delay between fills to avoid overwhelming the page
-      await this.delay(50);
+      await this.delay(100);
     }
+
+    // Show final status
+    const success = errors.length === 0;
+    visualFeedback.showFieldCounter(highConfidenceFields.length, filled, success ? 'success' : 'error');
 
     return { filled, errors };
   }
@@ -1203,42 +1226,7 @@ class FormDetectionSystem {
     });
   }
 
-  /**
-   * Add visual feedback to indicate field filling status
-   */
-  private addVisualFeedback(element: HTMLElement, status: 'success' | 'error'): void {
-    // Remove any existing feedback classes
-    element.classList.remove('autofill-success', 'autofill-error');
 
-    // Add appropriate class
-    const className = status === 'success' ? 'autofill-success' : 'autofill-error';
-    element.classList.add(className);
-
-    // Add inline styles for immediate visual feedback
-    const originalStyle = {
-      backgroundColor: element.style.backgroundColor,
-      border: element.style.border,
-      boxShadow: element.style.boxShadow
-    };
-
-    if (status === 'success') {
-      element.style.backgroundColor = '#e8f5e8';
-      element.style.border = '2px solid #4caf50';
-      element.style.boxShadow = '0 0 5px rgba(76, 175, 80, 0.3)';
-    } else {
-      element.style.backgroundColor = '#ffeaea';
-      element.style.border = '2px solid #f44336';
-      element.style.boxShadow = '0 0 5px rgba(244, 67, 54, 0.3)';
-    }
-
-    // Remove visual feedback after delay
-    setTimeout(() => {
-      element.classList.remove(className);
-      element.style.backgroundColor = originalStyle.backgroundColor;
-      element.style.border = originalStyle.border;
-      element.style.boxShadow = originalStyle.boxShadow;
-    }, 3000);
-  }
 
   /**
    * Upload files to detected file upload fields
@@ -1556,64 +1544,26 @@ class FormDetectionSystem {
    * Show completion feedback for the entire autofill operation
    */
   private showAutofillCompletionFeedback(result: { filled: number; errors: string[]; fileUploads?: number }): void {
-    // Create a temporary notification element
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${result.errors.length === 0 ? '#4caf50' : '#ff9800'};
-      color: white;
-      padding: 12px 20px;
-      border-radius: 4px;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      z-index: 10000;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      max-width: 350px;
-      line-height: 1.4;
-    `;
-
-    // Create detailed message including file uploads
-    let message = '';
-    const totalActions = result.filled;
+    // Calculate totals
     const fileUploads = result.fileUploads || 0;
-    const fieldFills = totalActions - fileUploads;
+    const fieldFills = result.filled - fileUploads;
+    const totalFields = this.fieldMappings.length + this.fileUploadMappings.length;
 
-    if (result.errors.length === 0) {
-      if (fileUploads > 0 && fieldFills > 0) {
-        message = `✓ Autofill complete: ${fieldFills} fields filled, ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
-      } else if (fileUploads > 0) {
-        message = `✓ File upload complete: ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
-      } else if (fieldFills > 0) {
-        message = `✓ Autofill complete: ${fieldFills} fields filled`;
-      } else {
-        message = '✓ Autofill completed (no actions needed)';
-      }
-    } else {
-      if (fileUploads > 0 && fieldFills > 0) {
-        message = `⚠ Autofill completed with ${result.errors.length} error${result.errors.length > 1 ? 's' : ''}: ${fieldFills} fields filled, ${fileUploads} file${fileUploads > 1 ? 's' : ''} uploaded`;
-      } else {
-        message = `⚠ Autofill completed: ${totalActions} action${totalActions > 1 ? 's' : ''} with ${result.errors.length} error${result.errors.length > 1 ? 's' : ''}`;
-      }
-    }
-
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    // Remove notification after delay
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.parentNode.removeChild(notification);
-      }
-    }, 5000); // Slightly longer display time for more detailed message
+    // Use the new visual feedback system for completion notification
+    const success = result.errors.length === 0;
+    visualFeedback.showCompletionNotification(
+      success,
+      result.filled,
+      totalFields,
+      result.errors.length > 0 ? result.errors : undefined
+    );
 
     // Log detailed results
     console.log('Autofill completed:', {
       ...result,
       fieldFills,
       fileUploads,
-      totalActions
+      totalFields
     });
     if (result.errors.length > 0) {
       console.warn('Autofill errors:', result.errors);
@@ -1882,11 +1832,35 @@ class FormDetectionSystem {
   /**
    * Clean up resources
    */
+  /**
+   * Setup cleanup handlers for visual feedback
+   */
+  private setupCleanup(): void {
+    // Clean up visual feedback when page is unloaded
+    window.addEventListener('beforeunload', () => {
+      visualFeedback.cleanup();
+    });
+
+    // Clean up when extension context is invalidated
+    window.addEventListener('unload', () => {
+      visualFeedback.cleanup();
+    });
+  }
+
+  /**
+   * Clear all visual feedback (can be called externally)
+   */
+  public clearVisualFeedback(): void {
+    visualFeedback.clearAllHighlights();
+  }
+
   public destroy(): void {
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
+    // Clean up visual feedback when destroying the detector
+    visualFeedback.cleanup();
   }
 }
 

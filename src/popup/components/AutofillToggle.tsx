@@ -10,6 +10,8 @@ import {
   transitions
 } from '../../shared/design-system';
 import { useNotificationHelpers } from '../hooks/useNotificationHelpers';
+import { useNotifications } from '../contexts/NotificationContext';
+import { createAutofillNotifications } from '../../shared/notificationUtils';
 
 interface AutofillToggleProps {
   onToggleChange?: (enabled: boolean) => void;
@@ -24,10 +26,10 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
 
   const {
     showSuccess,
-    showError,
-    showAutofillSuccess,
-    showAutofillError
+    showError
   } = useNotificationHelpers();
+
+  const { addNotification, removeNotification } = useNotifications();
 
   // Load current autofill status on component mount
   useEffect(() => {
@@ -478,36 +480,58 @@ export const AutofillToggle: React.FC<AutofillToggleProps> = ({ onToggleChange }
           <button
             onClick={async () => {
               setIsUpdating(true);
+              
+              // Show starting notification
+              const startingNotificationId = addNotification(createAutofillNotifications.starting());
+              
               try {
                 const result = await messaging.triggerAutofill();
+                
+                // Remove starting notification
+                removeNotification(startingNotificationId);
+                
                 if (result && result.success) {
                   const filledFields = result.data?.filled || 0;
                   const fileUploads = result.data?.fileUploadsCompleted || 0;
+                  const fieldsDetected = result.data?.fieldsDetected || 0;
+                  const fileFieldsDetected = result.data?.fileUploadsDetected || 0;
+                  const errors = result.data?.errors || [];
 
-                  showAutofillSuccess(filledFields);
+                  // Show field detection notification first
+                  if (fieldsDetected > 0 || fileFieldsDetected > 0) {
+                    addNotification(createAutofillNotifications.fieldsDetected(fieldsDetected, fileFieldsDetected));
+                  }
 
-                  if (fileUploads > 0) {
-                    showSuccess(
-                      'CV Upload Complete',
-                      `Uploaded CV to ${fileUploads} file field${fileUploads > 1 ? 's' : ''}`
-                    );
+                  // Show completion notification
+                  if (errors.length === 0) {
+                    addNotification(createAutofillNotifications.success(filledFields, fileUploads));
+                  } else if (filledFields > 0) {
+                    addNotification(createAutofillNotifications.partialSuccess(filledFields, fieldsDetected + fileFieldsDetected, errors));
+                  } else {
+                    addNotification(createAutofillNotifications.error(errors.join(', ')));
                   }
                 } else {
                   throw new Error(result?.error || 'Autofill failed');
                 }
               } catch (error) {
+                // Remove starting notification
+                removeNotification(startingNotificationId);
+                
                 console.error('Error triggering autofill:', error);
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 
+                let userFriendlyMessage = '';
                 if (errorMessage.includes('No web page tabs found')) {
-                  showAutofillError('Please open a job application website in a new tab and try again.');
+                  userFriendlyMessage = 'Please open a job application website in a new tab and try again.';
                 } else if (errorMessage.includes('Cannot autofill on this page')) {
-                  showAutofillError('Cannot autofill on this page. Please navigate to a job application website.');
+                  userFriendlyMessage = 'Cannot autofill on this page. Please navigate to a job application website.';
                 } else if (errorMessage.includes('No user profile found')) {
-                  showAutofillError('Please complete your profile first in the Profile tab.');
+                  userFriendlyMessage = 'Please complete your profile first in the Profile tab.';
                 } else {
-                  showAutofillError('Make sure you are on a job application page and try again.');
+                  userFriendlyMessage = 'Make sure you are on a job application page and try again.';
                 }
+
+                addNotification(createAutofillNotifications.error(userFriendlyMessage));
               } finally {
                 setIsUpdating(false);
               }

@@ -86,6 +86,8 @@ export enum MessageType {
   TOGGLE_AUTOFILL = 'TOGGLE_AUTOFILL',
   TRIGGER_AUTOFILL = 'TRIGGER_AUTOFILL',
   AUTOFILL_COMPLETE = 'AUTOFILL_COMPLETE',
+  AUTOFILL_PROGRESS = 'AUTOFILL_PROGRESS',
+  FIELDS_DETECTED = 'FIELDS_DETECTED',
   ERROR = 'ERROR'
 }
 
@@ -158,4 +160,25 @@ export interface NotificationContextType {
   addNotification: (notification: Omit<NotificationItem, 'id' | 'timestamp'>) => string;
   removeNotification: (id: string) => void;
   clearAllNotifications: () => void;
+}
+
+// Autofill progress tracking types
+export interface AutofillProgress {
+  stage: 'detecting' | 'filling' | 'uploading' | 'complete' | 'error';
+  currentField?: number;
+  totalFields?: number;
+  fieldsDetected?: number;
+  fileFieldsDetected?: number;
+  fieldsFilled?: number;
+  filesUploaded?: number;
+  errors?: string[];
+  currentFieldType?: string;
+  currentFieldValue?: string;
+}
+
+export interface FieldDetectionResult {
+  fieldsDetected: number;
+  fileFieldsDetected: number;
+  fieldMappings: FieldMapping[];
+  fileUploadMappings: FileUploadMapping[];
 }
