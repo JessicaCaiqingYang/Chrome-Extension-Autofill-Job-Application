@@ -4,6 +4,12 @@
 import { storage } from '../shared/storage';
 import { messaging } from '../shared/messaging';
 import { Message, MessageType, UserProfile, CVData } from '../shared/types';
+import { 
+  errorHandler, 
+  createValidationError, 
+  createStorageError
+} from '../shared/errorHandling';
+import { ErrorCategory } from '../shared/errorTypes';
 // Note: PDF/DOCX parsing temporarily disabled due to browser compatibility issues
 // import pdfParse from 'pdf-parse';
 // import * as mammoth from 'mammoth';
@@ -113,7 +119,20 @@ async function handleGetUserProfile(): Promise<UserProfile | null> {
     return profile;
   } catch (error) {
     console.error('Error getting user profile:', error);
-    throw error;
+    
+    // Create appropriate error based on the type of failure
+    if (error instanceof Error) {
+      const extensionError = errorHandler.createErrorFromException(error, ErrorCategory.STORAGE, {
+        component: 'service-worker',
+        action: 'handleGetUserProfile'
+      });
+      throw extensionError;
+    }
+    
+    throw createStorageError({
+      component: 'service-worker',
+      action: 'handleGetUserProfile'
+    });
   }
 }
 
@@ -121,7 +140,10 @@ async function handleSetUserProfile(profileData: UserProfile): Promise<boolean> 
   try {
     // Validate profile data
     if (!profileData || !profileData.personalInfo) {
-      throw new Error('Invalid profile data');
+      throw createValidationError('Profile data is missing or invalid', {
+        component: 'service-worker',
+        action: 'handleSetUserProfile'
+      });
     }
 
     const success = await storage.setUserProfile(profileData);
@@ -130,16 +152,39 @@ async function handleSetUserProfile(profileData: UserProfile): Promise<boolean> 
     // Notify content scripts about profile update if autofill is enabled
     const autofillEnabled = await storage.getAutofillEnabled();
     if (autofillEnabled && success) {
-      await messaging.sendToAllContentScripts({
-        type: MessageType.SET_USER_PROFILE,
-        payload: profileData
-      });
+      try {
+        await messaging.sendToAllContentScripts({
+          type: MessageType.SET_USER_PROFILE,
+          payload: profileData
+        });
+      } catch (messagingError) {
+        // Log messaging error but don't fail the profile save
+        console.warn('Failed to notify content scripts of profile update:', messagingError);
+      }
     }
 
     return success;
   } catch (error) {
     console.error('Error setting user profile:', error);
-    throw error;
+    
+    // If it's already an ExtensionError, re-throw it
+    if (error && typeof error === 'object' && 'code' in error) {
+      throw error;
+    }
+    
+    // Create appropriate error based on the type of failure
+    if (error instanceof Error) {
+      const extensionError = errorHandler.createErrorFromException(error, ErrorCategory.STORAGE, {
+        component: 'service-worker',
+        action: 'handleSetUserProfile'
+      });
+      throw extensionError;
+    }
+    
+    throw createStorageError({
+      component: 'service-worker',
+      action: 'handleSetUserProfile'
+    });
   }
 }
 

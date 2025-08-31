@@ -1,5 +1,7 @@
 // Chrome runtime messaging utilities
 import { Message, MessageType } from './types';
+import { errorHandler, createConnectionError } from './errorHandling';
+import { ErrorCategory } from './errorTypes';
 
 export const messaging = {
   // Send message to service worker from popup or content script
@@ -8,26 +10,51 @@ export const messaging = {
       try {
         // Check if extension context is still valid
         if (!chrome.runtime?.id) {
-          return reject(new Error('Extension context invalidated'));
+          const error = createConnectionError({
+            component: 'messaging',
+            action: 'sendToServiceWorker'
+          });
+          return reject(error);
         }
 
         chrome.runtime.sendMessage(message, (response) => {
           if (chrome.runtime.lastError) {
-            const error = chrome.runtime.lastError;
-            console.debug('sendToServiceWorker lastError:', error.message);
+            const chromeError = chrome.runtime.lastError;
+            console.debug('sendToServiceWorker lastError:', chromeError.message);
             
-            // Handle specific error cases
-            if (error.message?.includes('Extension context invalidated') || 
-                error.message?.includes('receiving end does not exist')) {
-              return reject(new Error('Extension context invalidated. Please refresh the page.'));
+            // Handle specific error cases with enhanced error handling
+            if (chromeError.message?.includes('Extension context invalidated') || 
+                chromeError.message?.includes('receiving end does not exist')) {
+              const error = createConnectionError({
+                component: 'messaging',
+                action: 'sendToServiceWorker'
+              });
+              return reject(error);
             }
             
+            // Create a generic connection error for other Chrome runtime errors
+            const error = errorHandler.createErrorFromException(
+              new Error(chromeError.message || 'Chrome runtime error'),
+              ErrorCategory.CONNECTION,
+              {
+                component: 'messaging',
+                action: 'sendToServiceWorker'
+              }
+            );
             return reject(error);
           }
           resolve(response);
         });
       } catch (err) {
-        reject(err);
+        const error = errorHandler.createErrorFromException(
+          err instanceof Error ? err : new Error(String(err)),
+          ErrorCategory.CONNECTION,
+          {
+            component: 'messaging',
+            action: 'sendToServiceWorker'
+          }
+        );
+        reject(error);
       }
     });
   },
@@ -35,18 +62,47 @@ export const messaging = {
   // Send message to content script from service worker
   async sendToContentScript(tabId: number, message: Message): Promise<any> {
     if (tabId === undefined || tabId === null) {
-      throw new Error('Invalid tabId');
+      const error = errorHandler.createError('VAL_001', {
+        component: 'messaging',
+        action: 'sendToContentScript',
+        tabId
+      }, {
+        userMessage: 'Invalid tab ID provided for content script communication.',
+        technicalDetails: `tabId was ${tabId}`
+      });
+      throw error;
     }
+    
     return new Promise((resolve, reject) => {
       try {
         chrome.tabs.sendMessage(tabId, message, (response) => {
           if (chrome.runtime.lastError) {
-            return reject(chrome.runtime.lastError);
+            const chromeError = chrome.runtime.lastError;
+            
+            // Create appropriate error based on the Chrome error
+            const error = errorHandler.createError('CONN_003', {
+              component: 'messaging',
+              action: 'sendToContentScript',
+              tabId
+            }, {
+              technicalDetails: chromeError.message
+            });
+            
+            return reject(error);
           }
           resolve(response);
         });
       } catch (err) {
-        reject(err);
+        const error = errorHandler.createErrorFromException(
+          err instanceof Error ? err : new Error(String(err)),
+          ErrorCategory.CONNECTION,
+          {
+            component: 'messaging',
+            action: 'sendToContentScript',
+            tabId
+          }
+        );
+        reject(error);
       }
     });
   },

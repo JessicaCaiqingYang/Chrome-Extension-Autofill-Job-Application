@@ -153,6 +153,7 @@ export interface NotificationItem {
     label: string;
     onClick: () => void;
   };
+  errorId?: string; // Link to ExtensionError if this notification is for an error
 }
 
 export interface NotificationContextType {

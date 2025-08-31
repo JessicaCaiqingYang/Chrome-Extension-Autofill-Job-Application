@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { messaging } from '../../shared/messaging';
 import { MessageType, ExtensionStatus, ActivityLogEntry, SessionStats } from '../../shared/types';
 import { useNotificationHelpers } from '../hooks/useNotificationHelpers';
+import { errorHandler } from '../../shared/errorHandling';
+import { ExtensionError, ErrorSeverity } from '../../shared/errorTypes';
+import { ErrorManager } from './ErrorManager';
+import { ErrorHandlingTest } from './ErrorHandlingTest';
 import { 
   colors, 
   spacing, 
@@ -43,6 +47,8 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showErrorManager, setShowErrorManager] = useState<boolean>(false);
+  const [recentErrors, setRecentErrors] = useState<ExtensionError[]>([]);
   
   // Notification helpers
   const {
@@ -56,6 +62,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
   // Load initial status
   useEffect(() => {
     loadStatus();
+    loadRecentErrors();
 
     // Set up message listener for real-time updates
     const messageListener = (message: any, _sender: any, sendResponse: any) => {
@@ -69,16 +76,45 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       return true; // Keep message channel open
     };
 
-    // Add message listener
+    // Set up error listener for new errors
+    const handleNewError = (error: ExtensionError) => {
+      setRecentErrors(prev => [error, ...prev.slice(0, 4)]); // Keep last 5 errors
+      
+      // Update status with error information
+      setStatus(prev => ({
+        ...prev,
+        errors: [error.userMessage, ...prev.errors.slice(0, 2)], // Keep last 3 error messages
+        healthStatus: error.severity === ErrorSeverity.CRITICAL || error.severity === ErrorSeverity.HIGH ? 'error' : 'warning'
+      }));
+    };
+
+    // Add listeners
     chrome.runtime.onMessage.addListener(messageListener);
+    errorHandler.addErrorListener(handleNewError);
 
     // Refresh status every 15 seconds for real-time updates
-    const interval = setInterval(loadStatus, 15000);
+    const interval = setInterval(() => {
+      loadStatus();
+      loadRecentErrors();
+    }, 15000);
 
     return () => {
       clearInterval(interval);
       chrome.runtime.onMessage.removeListener(messageListener);
+      errorHandler.removeErrorListener(handleNewError);
     };
+  }, []);
+
+  const loadRecentErrors = useCallback(async () => {
+    try {
+      const errors = errorHandler.getErrors({
+        resolved: false,
+        since: Date.now() - (24 * 60 * 60 * 1000) // Last 24 hours
+      });
+      setRecentErrors(errors.slice(0, 5)); // Keep last 5 errors
+    } catch (error) {
+      console.error('Failed to load recent errors:', error);
+    }
   }, []);
 
   const loadStatus = useCallback(async () => {
@@ -88,8 +124,19 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
       setIsRefreshing(true);
       
       const [profile, cvData, sessionData, activityData] = await Promise.all([
-        messaging.getUserProfile().catch(() => null),
-        messaging.getCVData().catch(() => null),
+        messaging.getUserProfile().catch((error) => {
+          // Log the error but don't fail the entire status load
+          if (error.code) {
+            console.warn('Failed to load profile:', error.userMessage);
+          }
+          return null;
+        }),
+        messaging.getCVData().catch((error) => {
+          if (error.code) {
+            console.warn('Failed to load CV data:', error.userMessage);
+          }
+          return null;
+        }),
         getSessionStats().catch(() => getDefaultSessionStats()),
         getRecentActivity().catch(() => [])
       ]);
@@ -713,6 +760,80 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ className, sty
           </div>
         </div>
       )}
+
+      {/* Recent Errors Card */}
+      {recentErrors.length > 0 && (
+        <div style={mergeStyles(cardStyles.base, { 
+          marginBottom: spacing[4],
+          borderColor: colors.error[300],
+          backgroundColor: colors.error[50]
+        })}>
+          <div style={layoutStyles.flexBetween}>
+            <h4 style={mergeStyles(textStyles.heading2, { 
+              color: colors.error[700],
+              marginBottom: spacing[3]
+            })}>
+              Recent Issues ({recentErrors.length})
+            </h4>
+            <button
+              onClick={() => setShowErrorManager(!showErrorManager)}
+              style={mergeStyles(buttonStyles.base, buttonStyles.danger, {
+                padding: `${spacing[1]} ${spacing[2]}`,
+                fontSize: typography.fontSize.xs
+              })}
+            >
+              {showErrorManager ? 'Hide Details' : 'Manage Errors'}
+            </button>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[2] }}>
+            {recentErrors.slice(0, 3).map((error) => (
+              <div key={error.id} style={{
+                padding: spacing[2],
+                backgroundColor: colors.neutral[50],
+                borderRadius: borderRadius.sm,
+                border: `1px solid ${colors.error[200]}`
+              }}>
+                <div style={mergeStyles(textStyles.body, {
+                  color: colors.error[700],
+                  marginBottom: spacing[1]
+                })}>
+                  {error.userMessage}
+                </div>
+                <div style={mergeStyles(textStyles.caption, {
+                  color: colors.neutral[600]
+                })}>
+                  {formatTimestamp(error.timestamp)} • {error.category}
+                </div>
+              </div>
+            ))}
+            
+            {recentErrors.length > 3 && (
+              <div style={mergeStyles(textStyles.caption, {
+                textAlign: 'center',
+                color: colors.neutral[500],
+                padding: spacing[1]
+              })}>
+                +{recentErrors.length - 3} more errors
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error Manager */}
+      {showErrorManager && (
+        <div style={mergeStyles(cardStyles.base, { marginBottom: spacing[4] })}>
+          <ErrorManager 
+            maxDisplayErrors={5}
+            showTechnicalDetails={false}
+            autoRefresh={true}
+          />
+        </div>
+      )}
+
+      {/* Error Handling Test */}
+      <ErrorHandlingTest />
 
       {/* Notification System Demo */}
       <div style={cardStyles.base}>
