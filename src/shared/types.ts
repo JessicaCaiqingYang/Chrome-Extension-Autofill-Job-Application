@@ -112,6 +112,42 @@ export enum MessageType {
   AUTO_FILL_PROFILE = 'AUTO_FILL_PROFILE'
 }
 
+// Error handling for CV processing
+export enum CVProcessingErrorCode {
+  UNSUPPORTED_FORMAT = 'UNSUPPORTED_FORMAT',
+  CORRUPTED_FILE = 'CORRUPTED_FILE',
+  PASSWORD_PROTECTED = 'PASSWORD_PROTECTED',
+  EXTRACTION_FAILED = 'EXTRACTION_FAILED',
+  EMPTY_CONTENT = 'EMPTY_CONTENT',
+  SIZE_LIMIT_EXCEEDED = 'SIZE_LIMIT_EXCEEDED',
+  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+  INSUFFICIENT_CONTENT = 'INSUFFICIENT_CONTENT',
+  INVALID_FILE_STRUCTURE = 'INVALID_FILE_STRUCTURE'
+}
+
+export interface CVProcessingError {
+  success: false;
+  error: string;
+  errorCode: CVProcessingErrorCode;
+  details?: string;
+  userMessage: string; // User-friendly error message
+}
+
+export interface CVProcessingSuccess {
+  success: true;
+  data: CVData;
+}
+
+export type CVProcessingResult = CVProcessingSuccess | CVProcessingError;
+
+// Content validation requirements
+export interface ContentValidationRules {
+  minTextLength: number;
+  minWordCount: number;
+  maxProcessingTime: number; // in milliseconds
+  requiredSections?: string[]; // Optional sections that should be present
+}
+
 // Storage keys for Chrome storage
 export enum StorageKey {
   USER_PROFILE = 'userProfile',

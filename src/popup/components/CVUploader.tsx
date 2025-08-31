@@ -124,17 +124,18 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       
       setUploadProgress(100);
 
-      if (result && result.success) {
-        const newCVData: CVData = {
-          fileName: file.name,
-          fileSize: file.size,
-          uploadDate: Date.now(),
-          extractedText: result.extractedText || '',
-          fileType: file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'docx'
-        };
-
+      if (result && result.success && result.data) {
+        const newCVData = result.data;
         setCvData(newCVData);
-        setSuccessMessage(`CV uploaded successfully! ${result.extractedText ? 'Text extracted.' : 'Processing...'}`);
+        
+        // Create success message with extraction metadata
+        let successMsg = `CV uploaded successfully!`;
+        if (newCVData.extractionMetadata) {
+          const { wordCount, extractionTime } = newCVData.extractionMetadata;
+          successMsg += ` Extracted ${wordCount} words in ${(extractionTime / 1000).toFixed(1)}s.`;
+        }
+        
+        setSuccessMessage(successMsg);
         
         if (onCVUpdate) {
           console.log('🔄 CVUploader calling onCVUpdate callback...', newCVData);
@@ -143,10 +144,21 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
           console.warn('⚠️ CVUploader: onCVUpdate callback not provided');
         }
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(''), 3000);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(''), 5000);
       } else {
-        throw new Error(result?.error || 'Upload failed');
+        // Handle enhanced error response format
+        const errorMessage = result?.userMessage || result?.error || 'Upload failed';
+        const errorDetails = result?.details ? ` (${result.details})` : '';
+        
+        console.error('CV upload failed:', {
+          error: result?.error,
+          errorCode: result?.errorCode,
+          userMessage: result?.userMessage,
+          details: result?.details
+        });
+        
+        throw new Error(errorMessage + errorDetails);
       }
     } catch (error) {
       console.error('Error uploading CV:', error);

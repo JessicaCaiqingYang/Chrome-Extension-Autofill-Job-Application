@@ -3,7 +3,9 @@
 
 import { storage } from '../shared/storage';
 import { messaging } from '../shared/messaging';
-import { Message, MessageType, UserProfile, CVData } from '../shared/types';
+import { Message, MessageType, UserProfile, CVData, CVProcessingResult, CVProcessingErrorCode } from '../shared/types';
+import { CVErrorHandler } from '../shared/cv-error-handler';
+import { TimeoutHandler } from '../shared/timeout-handler';
 import pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import { Buffer } from 'buffer';
@@ -124,7 +126,17 @@ chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) =>
 
         case MessageType.SET_CV_DATA:
           const cvResult = await handleSetCVData(message.payload);
-          sendResponse({ success: cvResult.success, data: cvResult.data, error: cvResult.error });
+          if (cvResult.success) {
+            sendResponse({ success: true, data: cvResult.data });
+          } else {
+            sendResponse({ 
+              success: false, 
+              error: cvResult.error,
+              errorCode: cvResult.errorCode,
+              userMessage: cvResult.userMessage,
+              details: cvResult.details
+            });
+          }
           break;
 
         case MessageType.TOGGLE_AUTOFILL:
@@ -229,12 +241,15 @@ async function handleGetCVData(): Promise<CVData | null> {
   }
 }
 
-async function handleSetCVData(payload: { fileData: any }): Promise<{ success: boolean; data?: CVData; error?: string }> {
+async function handleSetCVData(payload: { fileData: any }): Promise<CVProcessingResult> {
   try {
     const { fileData } = payload;
 
     if (!fileData) {
-      return { success: false, error: 'No file data provided' };
+      return CVErrorHandler.createError(
+        CVProcessingErrorCode.EXTRACTION_FAILED,
+        'No file data provided'
+      );
     }
 
     // Reconstruct File object from serialized data
@@ -243,27 +258,48 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       lastModified: fileData.lastModified
     });
 
-    // Validate file type
-    const fileType = getFileType(file.name);
-    if (!fileType) {
-      return { success: false, error: 'Unsupported file type. Please upload PDF or Word documents.' };
+    // Validate file before processing
+    const validationError = CVErrorHandler.validateFile(file);
+    if (validationError) {
+      return validationError;
     }
 
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      return { success: false, error: 'File size too large. Please upload files smaller than 5MB.' };
-    }
-
+    const fileType = getFileType(file.name)!; // We know it's valid from validation
     console.log('Processing CV file:', file.name, 'Type:', fileType, 'Size:', file.size);
 
-    // Extract text from file
+    // Extract text from file with timeout
     const startTime = Date.now();
-    const extractionResult = await extractTextFromFile(file, fileType);
-    const extractionTime = Date.now() - startTime;
+    const maxProcessingTime = fileType === 'pdf' 
+      ? TimeoutHandler.DEFAULT_TIMEOUTS.PDF_PARSING 
+      : TimeoutHandler.DEFAULT_TIMEOUTS.DOCX_PARSING;
 
-    if (!extractionResult.text || extractionResult.text.trim().length === 0) {
-      return { success: false, error: 'Could not extract text from the file. Please ensure the file is not corrupted.' };
+    let extractionResult: { text: string; pageCount?: number };
+    
+    try {
+      extractionResult = await TimeoutHandler.withTimeout(
+        extractTextFromFile(file, fileType),
+        maxProcessingTime,
+        `CV processing timed out after ${maxProcessingTime / 1000} seconds`
+      );
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      
+      if (error instanceof Error && error.message.includes('timed out')) {
+        return CVErrorHandler.createTimeoutError(processingTime, maxProcessingTime);
+      }
+      
+      // Analyze the error and return appropriate error response
+      return CVErrorHandler.analyzeError(error as Error, fileType);
+    }
+
+    const extractionTime = Date.now() - startTime;
+    const cleanedText = extractionResult.text.trim();
+    const wordCount = cleanedText.split(/\s+/).filter(word => word.length > 0).length;
+
+    // Validate extracted content
+    const contentValidationError = CVErrorHandler.validateContent(cleanedText, wordCount);
+    if (contentValidationError) {
+      return contentValidationError;
     }
 
     // Create CV data object
@@ -271,11 +307,11 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       fileName: file.name,
       fileSize: file.size,
       uploadDate: Date.now(),
-      extractedText: extractionResult.text.trim(),
+      extractedText: cleanedText,
       fileType,
       extractionMetadata: {
         pageCount: extractionResult.pageCount,
-        wordCount: extractionResult.text.trim().split(/\s+/).length,
+        wordCount,
         extractionTime,
         extractionMethod: fileType === 'pdf' ? 'pdf-parse' : 'mammoth'
       }
@@ -288,13 +324,18 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       console.log('CV data saved successfully:', cvData.fileName);
       return { success: true, data: cvData };
     } else {
-      return { success: false, error: 'Failed to save CV data to storage' };
+      return CVErrorHandler.createError(
+        CVProcessingErrorCode.EXTRACTION_FAILED,
+        'Failed to save CV data to storage'
+      );
     }
 
   } catch (error) {
     console.error('Error processing CV file:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to process CV file';
-    return { success: false, error: errorMessage };
+    return CVErrorHandler.createError(
+      CVProcessingErrorCode.EXTRACTION_FAILED,
+      error instanceof Error ? error.message : 'Unknown error occurred'
+    );
   }
 }
 
@@ -316,65 +357,48 @@ function getFileType(fileName: string): 'pdf' | 'docx' | null {
 async function extractTextFromFile(file: File, fileType: 'pdf' | 'docx'): Promise<{ text: string; pageCount?: number }> {
   console.log(`Starting text extraction for ${fileType.toUpperCase()} file:`, file.name);
   
-  try {
-    let extractedText: string;
-    let pageCount: number | undefined;
-    
-    if (fileType === 'pdf') {
-      const pdfResult = await extractTextFromPDF(file);
-      extractedText = pdfResult.text;
-      pageCount = pdfResult.pageCount;
-    } else if (fileType === 'docx') {
-      extractedText = await extractTextFromDOCX(file);
-      pageCount = undefined; // DOCX doesn't have page concept like PDF
-    } else {
-      throw new Error(`Unsupported file type: ${fileType}`);
-    }
-    
-    // Clean and validate the extracted text
-    const cleanedText = cleanExtractedText(extractedText);
-    
-    if (!cleanedText || cleanedText.trim().length < 50) {
-      throw new Error('Extracted text is too short or empty. Please ensure the document contains readable text.');
-    }
-    
-    console.log(`Text extraction successful. Extracted ${cleanedText.length} characters from ${file.name}`);
-    return { text: cleanedText, pageCount };
-    
-  } catch (error) {
-    console.error('Error extracting text from file:', error);
-    
-    // Provide specific error messages based on error type
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid PDF')) {
-        throw new Error('The PDF file appears to be corrupted or invalid. Please try uploading a different file.');
-      } else if (error.message.includes('password')) {
-        throw new Error('Password-protected PDF files are not supported. Please upload an unprotected PDF.');
-      } else if (error.message.includes('too short')) {
-        throw error; // Re-throw validation errors as-is
-      } else {
-        throw new Error(`Failed to extract text from ${fileType.toUpperCase()} file: ${error.message}`);
-      }
-    } else {
-      throw new Error(`Unknown error occurred while processing ${fileType.toUpperCase()} file.`);
-    }
+  let extractedText: string;
+  let pageCount: number | undefined;
+  
+  if (fileType === 'pdf') {
+    const pdfResult = await extractTextFromPDF(file);
+    extractedText = pdfResult.text;
+    pageCount = pdfResult.pageCount;
+  } else if (fileType === 'docx') {
+    extractedText = await extractTextFromDOCX(file);
+    pageCount = undefined; // DOCX doesn't have page concept like PDF
+  } else {
+    throw new Error(`Unsupported file type: ${fileType}`);
   }
+  
+  // Clean the extracted text with timeout
+  const cleanedText = await TimeoutHandler.withTimeout(
+    Promise.resolve(cleanExtractedText(extractedText)),
+    TimeoutHandler.DEFAULT_TIMEOUTS.TEXT_CLEANING,
+    'Text cleaning operation timed out'
+  );
+  
+  console.log(`Text extraction successful. Extracted ${cleanedText.length} characters from ${file.name}`);
+  return { text: cleanedText, pageCount };
 }
 
 // Extract text from PDF files using pdf-parse
 async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount: number }> {
+  console.log('Converting PDF file to buffer for parsing...');
+  
+  // Convert File to ArrayBuffer with timeout
+  const arrayBuffer = await TimeoutHandler.withTimeout(
+    file.arrayBuffer(),
+    TimeoutHandler.DEFAULT_TIMEOUTS.FILE_READING,
+    'File reading timed out'
+  );
+  
+  const buffer = Buffer.from(arrayBuffer);
+  console.log(`PDF buffer created, size: ${buffer.length} bytes`);
+  
+  // Parse PDF with pdf-parse and enhanced error handling
   try {
-    console.log('Converting PDF file to buffer for parsing...');
-    
-    // Convert File to ArrayBuffer, then to Buffer for pdf-parse
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    console.log(`PDF buffer created, size: ${buffer.length} bytes`);
-    
-    // Parse PDF with pdf-parse
     const pdfData = await pdfParse(buffer, {
-      // Options for pdf-parse
       max: 0, // Parse all pages (0 = no limit)
       version: 'v1.10.100' // Specify version for compatibility
     });
@@ -394,16 +418,34 @@ async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount
     console.error('PDF parsing error:', error);
     
     if (error instanceof Error) {
-      // Handle specific pdf-parse errors
-      if (error.message.includes('Invalid PDF structure')) {
+      const errorMessage = error.message.toLowerCase();
+      
+      // Handle specific pdf-parse errors with more detailed detection
+      if (errorMessage.includes('invalid pdf') || 
+          errorMessage.includes('pdf structure') ||
+          errorMessage.includes('not a pdf') ||
+          errorMessage.includes('corrupted')) {
         throw new Error('Invalid PDF structure - the file may be corrupted.');
-      } else if (error.message.includes('Password required')) {
-        throw new Error('Password-protected PDF files are not supported.');
-      } else if (error.message.includes('No readable text')) {
-        throw error; // Re-throw our custom validation error
-      } else {
-        throw new Error(`PDF parsing failed: ${error.message}`);
       }
+      
+      if (errorMessage.includes('password') || 
+          errorMessage.includes('encrypted') ||
+          errorMessage.includes('security')) {
+        throw new Error('Password-protected PDF files are not supported.');
+      }
+      
+      if (errorMessage.includes('no readable text') || 
+          errorMessage.includes('image-based')) {
+        throw error; // Re-throw our custom validation error
+      }
+      
+      if (errorMessage.includes('memory') || 
+          errorMessage.includes('out of memory')) {
+        throw new Error('PDF file is too complex to process. Please try a simpler document.');
+      }
+      
+      // Generic PDF parsing error
+      throw new Error(`PDF parsing failed: ${error.message}`);
     } else {
       throw new Error('Unknown error occurred during PDF parsing.');
     }
@@ -412,22 +454,36 @@ async function extractTextFromPDF(file: File): Promise<{ text: string; pageCount
 
 // Extract text from DOCX files using mammoth
 async function extractTextFromDOCX(file: File): Promise<string> {
+  console.log('Converting DOCX file to buffer for parsing...');
+  
+  // Convert File to ArrayBuffer with timeout
+  const arrayBuffer = await TimeoutHandler.withTimeout(
+    file.arrayBuffer(),
+    TimeoutHandler.DEFAULT_TIMEOUTS.FILE_READING,
+    'File reading timed out'
+  );
+  
+  console.log(`DOCX buffer created, size: ${arrayBuffer.byteLength} bytes`);
+  
+  // Parse DOCX with mammoth and enhanced error handling
   try {
-    console.log('Converting DOCX file to buffer for parsing...');
-    
-    // Convert File to ArrayBuffer for mammoth
-    const arrayBuffer = await file.arrayBuffer();
-    
-    console.log(`DOCX buffer created, size: ${arrayBuffer.byteLength} bytes`);
-    
-    // Parse DOCX with mammoth - extract raw text to preserve structure
     const result = await mammoth.extractRawText({ arrayBuffer });
     
     console.log(`DOCX parsing complete. Text length: ${result.value.length}`);
     
-    // Check for extraction warnings
+    // Check for extraction warnings and log them
     if (result.messages && result.messages.length > 0) {
-      console.warn('DOCX extraction warnings:', result.messages);
+      const warnings = result.messages.filter(msg => msg.type === 'warning');
+      const errors = result.messages.filter(msg => msg.type === 'error');
+      
+      if (warnings.length > 0) {
+        console.warn('DOCX extraction warnings:', warnings.map(w => w.message));
+      }
+      
+      if (errors.length > 0) {
+        console.error('DOCX extraction errors:', errors.map(e => e.message));
+        throw new Error(`DOCX parsing errors: ${errors.map(e => e.message).join(', ')}`);
+      }
     }
     
     if (!result.value || result.value.trim().length === 0) {
@@ -440,16 +496,38 @@ async function extractTextFromDOCX(file: File): Promise<string> {
     console.error('DOCX parsing error:', error);
     
     if (error instanceof Error) {
-      // Handle specific mammoth errors
-      if (error.message.includes('not a valid zip file') || error.message.includes('invalid signature')) {
+      const errorMessage = error.message.toLowerCase();
+      
+      // Handle specific mammoth errors with more detailed detection
+      if (errorMessage.includes('not a valid zip') || 
+          errorMessage.includes('invalid signature') ||
+          errorMessage.includes('zip file') ||
+          errorMessage.includes('corrupt')) {
         throw new Error('Invalid DOCX file structure - the file may be corrupted or not a valid Word document.');
-      } else if (error.message.includes('No readable text')) {
-        throw error; // Re-throw our custom validation error
-      } else if (error.message.includes('password') || error.message.includes('encrypted')) {
-        throw new Error('Password-protected or encrypted DOCX files are not supported.');
-      } else {
-        throw new Error(`DOCX parsing failed: ${error.message}`);
       }
+      
+      if (errorMessage.includes('password') || 
+          errorMessage.includes('encrypted') ||
+          errorMessage.includes('protected')) {
+        throw new Error('Password-protected or encrypted DOCX files are not supported.');
+      }
+      
+      if (errorMessage.includes('no readable text') || 
+          errorMessage.includes('empty')) {
+        throw error; // Re-throw our custom validation error
+      }
+      
+      if (errorMessage.includes('memory') || 
+          errorMessage.includes('out of memory')) {
+        throw new Error('DOCX file is too complex to process. Please try a simpler document.');
+      }
+      
+      if (errorMessage.includes('docx parsing errors')) {
+        throw error; // Re-throw mammoth-specific errors
+      }
+      
+      // Generic DOCX parsing error
+      throw new Error(`DOCX parsing failed: ${error.message}`);
     } else {
       throw new Error('Unknown error occurred during DOCX parsing.');
     }
