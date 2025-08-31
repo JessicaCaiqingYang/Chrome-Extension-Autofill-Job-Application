@@ -96,6 +96,48 @@ export enum StorageKey {
   AUTOFILL_ENABLED = 'autofillEnabled'
 }
 
+// Enhanced Status Tracking Types
+export interface ExtensionStatus {
+  isReady: boolean;
+  hasProfile: boolean;
+  hasCV: boolean;
+  autofillEnabled: boolean;
+  lastActivity?: string;
+  currentPage?: string;
+  errors: string[];
+  warnings: string[];
+  // Enhanced tracking fields
+  sessionStats: SessionStats;
+  recentActivity: ActivityLogEntry[];
+  healthStatus: 'healthy' | 'warning' | 'error';
+}
+
+export interface SessionStats {
+  formsDetected: number;
+  fieldsFilled: number;
+  successRate: number;
+  lastSession: number;
+  totalSessions: number;
+  averageFieldsPerForm: number;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  timestamp: number;
+  action: 'form_detected' | 'autofill_started' | 'autofill_completed' | 'error_occurred' | 'profile_updated' | 'cv_uploaded';
+  details: string;
+  url?: string;
+  fieldsCount?: number;
+  success?: boolean;
+  errorMessage?: string;
+}
+
+export interface HealthIndicator {
+  status: 'healthy' | 'warning' | 'error';
+  message: string;
+  lastCheck: number;
+}
+
 // Notification system types
 export interface NotificationItem {
   id: string;
