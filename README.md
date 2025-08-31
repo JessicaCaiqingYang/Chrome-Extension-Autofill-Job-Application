@@ -1,89 +1,96 @@
 # Job Application Autofill Chrome Extension
 
-A Chrome extension built with React, TypeScript, and Vite that automatically fills job application forms with stored user profile data and uploads CV/resume files to file upload fields.
+A Chrome extension that automatically fills job application forms with stored user profile data, helping job seekers streamline their application process.
 
-## Development Setup
+## 🚀 Quick Start
 
-1. Install dependencies:
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. Start development server:
-   ```bash
-   npm run dev
-   ```
-
-3. Build for production:
+2. **Build the Extension**
    ```bash
    npm run build
    ```
 
-4. Type checking:
-   ```bash
-   npm run type-check
-   ```
+3. **Load in Chrome**
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select the `dist/` folder
 
-## Loading the Extension
-
-1. Build the extension: `npm run build`
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the `dist` folder
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-src/
-├── popup/           # React popup interface
-├── content/         # Content scripts for form interaction
-├── background/      # Service worker for background tasks
-├── shared/          # Shared utilities and types
-└── assets/          # Static assets and icons
+├── src/                    # Source code
+│   ├── popup/             # React popup interface
+│   ├── background/        # Service worker
+│   ├── content/          # Content scripts
+│   └── shared/           # Common utilities
+├── tests/                 # All test files and scripts
+│   ├── scripts/          # Test automation scripts
+│   ├── test-results/     # Test reports and results
+│   └── *.html           # Test pages
+├── docs/                  # Documentation
+├── public/               # Static assets and manifest
+└── dist/                 # Built extension (generated)
 ```
 
-## Features
+## 🔧 Development
 
-### Form Autofill
-- Automatically detects and fills job application form fields
-- Maps form fields to user profile data using intelligent pattern matching
-- Supports various field types: name, email, phone, address, experience, skills
-- Works across different job sites and application forms
+- `npm run dev` - Start development server
+- `npm run build` - Production build
+- `npm run build:verify` - Build and run verification tests
+- `npm run type-check` - TypeScript type checking
 
-### CV Auto-Upload
-- Automatically uploads stored CV/resume to file upload fields
-- Detects fields labeled as "upload resume", "upload cv", "resume file", etc.
-- Supports PDF, DOC, and DOCX file formats
-- Validates file compatibility with upload field constraints
-- Provides visual feedback for successful uploads
+## 📚 Documentation
 
-### User Profile Management
-- Store and manage personal information
-- Upload and manage CV/resume files
-- Toggle autofill functionality on/off
-- Manual trigger for form filling
+Detailed documentation is available in the `docs/` directory:
 
-## Testing
+- **[Main Documentation](docs/README.md)** - Complete feature overview and usage guide
+- **[Testing Instructions](docs/TESTING_INSTRUCTIONS.md)** - How to test the extension
+- **[Design System](docs/DESIGN_SYSTEM_README.md)** - UI/UX design guidelines
+- **[Integration Summary](docs/INTEGRATION_SUMMARY.md)** - Component integration details
+- **[Troubleshooting](docs/CV_UPLOAD_TROUBLESHOOTING.md)** - Common issues and solutions
 
-### CV Auto-Upload Testing
-1. Open `test-cv-upload.html` in your browser
-2. Upload a CV file in the extension popup
-3. Click "Fill Current Page" in the extension popup
-4. Watch for visual feedback on file upload fields
-5. Check browser console for detailed upload logs
+## 🧪 Testing
 
-The test page includes various file upload fields with different labels to test the auto-upload functionality:
-- "Upload Resume"
-- "Upload CV" 
-- "Resume File"
-- "CV File"
-- "Upload Cover Letter"
-- "Upload Portfolio"
+All test files are organized in the `tests/` directory:
 
-## Technologies
+- **Test Pages**: `tests/test-*.html` - Interactive test pages for manual testing
+- **Test Scripts**: `tests/scripts/` - Automated testing and verification scripts
+- **Test Results**: `tests/test-results/` - Generated test reports and accessibility audits
+
+Run the complete test suite:
+```bash
+npm run build:verify
+```
+
+## ✨ Key Features
+
+- **Smart Form Detection** - Automatically identifies job application forms
+- **Profile Management** - Store personal information, experience, and skills
+- **CV/Resume Parsing** - Extract data from PDF and DOCX files
+- **Privacy First** - All data stored locally, no external servers
+- **Accessibility** - Full keyboard navigation and screen reader support
+
+## 🛠 Technology Stack
 
 - **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Extension API**: Chrome Manifest V3
-- **Storage**: Chrome Storage API
-- **Styling**: CSS (ready for styling framework integration)
+- **Build Tool**: Vite 4.5+ with React plugin
+- **Extension Platform**: Chrome Manifest V3
+- **Document Parsing**: mammoth (DOCX), pdf-parse (PDF)
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `npm run build:verify`
+5. Submit a pull request
+
+For detailed development guidelines, see the documentation in the `docs/` directory.

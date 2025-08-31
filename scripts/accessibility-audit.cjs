@@ -433,7 +433,7 @@ function checkReducedMotionSupport() {
 function generateAccessibilityReport(results) {
   log('Generating accessibility report...', 'debug');
   
-  const reportPath = path.join(__dirname, '..', 'test-results', 'accessibility-report.json');
+  const reportPath = path.join(__dirname, '..', 'tests', 'test-results', 'accessibility-report.json');
   const reportDir = path.dirname(reportPath);
   
   // Ensure report directory exists

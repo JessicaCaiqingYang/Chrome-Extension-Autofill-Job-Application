@@ -483,7 +483,7 @@ function checkDependencyCompatibility() {
 function generateCompatibilityReport(results) {
   log('Generating cross-browser compatibility report...', 'debug');
   
-  const reportPath = path.join(__dirname, '..', 'test-results', 'compatibility-report.json');
+  const reportPath = path.join(__dirname, '..', 'tests', 'test-results', 'compatibility-report.json');
   const reportDir = path.dirname(reportPath);
   
   // Ensure report directory exists

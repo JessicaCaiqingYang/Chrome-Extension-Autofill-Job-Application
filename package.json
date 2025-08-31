@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build && node scripts/build-extension.js",
     "build:complete": "node build-complete.cjs",
-    "build:verify": "npm run build && node scripts/test-extension.js && node scripts/verify-extension-functionality.js",
+    "build:verify": "npm run build && node tests/scripts/test-extension.js && node tests/scripts/verify-extension-functionality.js",
     "preview": "vite preview",
     "type-check": "tsc --noEmit"
   },

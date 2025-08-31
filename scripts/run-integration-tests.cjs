@@ -227,7 +227,7 @@ async function runPerformanceValidation() {
 function generateMasterReport(suiteResults) {
   log('Generating master integration report...', 'debug');
   
-  const reportPath = path.join(__dirname, '..', 'test-results', 'master-integration-report.json');
+  const reportPath = path.join(__dirname, '..', 'tests', 'test-results', 'master-integration-report.json');
   const reportDir = path.dirname(reportPath);
   
   // Ensure report directory exists

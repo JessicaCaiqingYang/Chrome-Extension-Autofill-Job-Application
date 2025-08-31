@@ -304,7 +304,7 @@ function validateComponentIntegration() {
 function generateTestReport(results) {
   log('Generating test report...', 'debug');
   
-  const reportPath = path.join(__dirname, '..', 'test-results', 'integration-report.json');
+  const reportPath = path.join(__dirname, '..', 'tests', 'test-results', 'integration-report.json');
   const reportDir = path.dirname(reportPath);
   
   // Ensure report directory exists

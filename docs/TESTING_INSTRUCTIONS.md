@@ -17,7 +17,7 @@
 ## Testing Steps
 
 ### Test 1: Using the Test Page
-1. Open the `test-messaging.html` file in a new Chrome tab
+1. Open the `tests/test-messaging.html` file in a new Chrome tab
 2. Click the extension icon and go to the "Autofill" tab
 3. Click "Fill Current Page"
 4. The form should be automatically filled with your profile data
@@ -67,7 +67,7 @@ Open Chrome DevTools (F12) and check:
 ## Test Sites
 
 Good sites to test with:
-- `test-messaging.html` (included test page)
+- `tests/test-messaging.html` (included test page)
 - LinkedIn job applications
 - Indeed job applications
 - Company career pages with application forms

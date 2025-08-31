@@ -4,7 +4,7 @@ If the CV auto-upload feature isn't working, follow these steps to identify and 
 
 ## 🔍 Step 1: Check Browser Console
 
-1. Open the test page (`test-cv-upload.html`) in your browser
+1. Open the test page (`tests/test-cv-upload.html`) in your browser
 2. Open Developer Tools (F12 or right-click → Inspect)
 3. Go to the Console tab
 4. Look for any error messages or debug output

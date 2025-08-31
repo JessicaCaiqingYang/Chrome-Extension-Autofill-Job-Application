@@ -66,7 +66,7 @@ Service Worker can relay status back to Popup
 5. ✅ Verify: Status indicator updates
 
 #### Test 3: End-to-End Autofill
-1. Open the test page: `test-integration.html`
+1. Open the test page: `tests/test-integration.html`
 2. Open extension popup
 3. Go to "Autofill" tab
 4. Click "Fill Current Page" button
@@ -89,9 +89,9 @@ Service Worker can relay status back to Popup
 4. ✅ Verify: Warning about missing data
 
 ### Automated Testing
-1. Open `test-integration.html` in browser
+1. Open `tests/test-integration.html` in browser
 2. Open browser console
-3. Load and run `test-extension.js`
+3. Load and run `tests/test-extension.js`
 4. ✅ Verify: All tests pass
 
 ## Communication Protocols Implemented
@@ -163,8 +163,8 @@ All the following must work correctly:
 - `src/background/service-worker.ts` - Improved error handling and response formatting
 
 ### Test Files Created:
-- `test-integration.html` - Comprehensive test page with various form fields
-- `test-extension.js` - Automated integration testing script
+- `tests/test-integration.html` - Comprehensive test page with various form fields
+- `tests/test-extension.js` - Automated integration testing script
 - `verify-integration.md` - This verification document
 
 ## Conclusion
