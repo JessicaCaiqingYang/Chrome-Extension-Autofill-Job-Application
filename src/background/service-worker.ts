@@ -1,7 +1,7 @@
 // Service worker for Job Application Autofill extension
 // Handles background processing, storage operations, and inter-component communication
 
-import { storage } from '../shared/storage';
+import { storage, blobUtils } from '../shared/storage';
 import { messaging } from '../shared/messaging';
 import { Message, MessageType, UserProfile, CVData } from '../shared/types';
 import { 
@@ -262,7 +262,6 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
     }
 
     // Convert file blob to base64 for Chrome storage compatibility
-    const { blobUtils } = await import('../shared/storage');
     console.log('Converting file to base64...');
     const fileBlob = await blobUtils.blobToBase64(file);
     console.log('Base64 conversion result length:', fileBlob.length);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CVData } from '../../shared/types';
 import { messaging } from '../../shared/messaging';
+import { FileProcessingFeedback } from './FileProcessingFeedback';
 
 interface CVUploaderProps {
   onCVUpdate?: (cvData: CVData | null) => void;
@@ -17,6 +18,9 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [processingStage, setProcessingStage] = useState<'idle' | 'uploading' | 'processing' | 'extracting' | 'storing' | 'complete' | 'error'>('idle');
+  const [currentFileName, setCurrentFileName] = useState<string>('');
+  const [currentFileSize, setCurrentFileSize] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing CV data on component mount
@@ -95,16 +99,28 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
   const simulateProgress = (): Promise<void> => {
     return new Promise((resolve) => {
       let progress = 0;
+      const stages = ['uploading', 'processing', 'extracting', 'storing'] as const;
+      let currentStageIndex = 0;
+      
       const interval = setInterval(() => {
-        progress += Math.random() * 30;
+        progress += Math.random() * 15 + 5; // 5-20% increments
+        
+        // Update processing stage based on progress
+        const stageProgress = Math.floor(progress / 25);
+        if (stageProgress < stages.length && stageProgress !== currentStageIndex) {
+          currentStageIndex = stageProgress;
+          setProcessingStage(stages[currentStageIndex]);
+        }
+        
         if (progress >= 90) {
           setUploadProgress(90);
+          setProcessingStage('storing');
           clearInterval(interval);
           resolve();
         } else {
           setUploadProgress(Math.min(progress, 90));
         }
-      }, 200);
+      }, 300);
     });
   };
 
@@ -125,9 +141,12 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
 
     setIsUploading(true);
     setUploadProgress(0);
+    setProcessingStage('uploading');
+    setCurrentFileName(file.name);
+    setCurrentFileSize(file.size);
 
     try {
-      // Simulate upload progress
+      // Simulate upload progress with stages
       await simulateProgress();
 
       // Upload file through messaging
@@ -142,6 +161,7 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       console.log('CVUploader: Upload result:', result);
       
       setUploadProgress(100);
+      setProcessingStage('complete');
 
       if (result && result.success && result.data) {
         setCvData(result.data);
@@ -159,7 +179,10 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
         }
 
         // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(''), 3000);
+        setTimeout(() => {
+          setSuccessMessage('');
+          setProcessingStage('idle');
+        }, 3000);
       } else {
         console.error('CVUploader: Upload failed:', result?.error);
         throw new Error(result?.error || 'Upload failed');
@@ -168,6 +191,7 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       console.error('Error uploading CV:', error);
       setError(error instanceof Error ? error.message : 'Error uploading CV. Please try again.');
       setUploadProgress(0);
+      setProcessingStage('error');
     } finally {
       setIsUploading(false);
       // Reset file input
@@ -268,32 +292,22 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
         </div>
       )}
 
-      {/* Upload Progress */}
-      {isUploading && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-            Uploading CV... {Math.round(uploadProgress)}%
-          </div>
-          <div
-            style={{
-              width: '100%',
-              height: '8px',
-              backgroundColor: '#ecf0f1',
-              borderRadius: '4px',
-              overflow: 'hidden'
-            }}
-          >
-            <div
-              style={{
-                width: `${uploadProgress}%`,
-                height: '100%',
-                backgroundColor: '#3498db',
-                transition: 'width 0.3s ease'
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* File Processing Feedback */}
+      <FileProcessingFeedback
+        fileName={currentFileName}
+        fileSize={currentFileSize}
+        processingStage={processingStage}
+        progress={uploadProgress}
+        error={error}
+        onCancel={() => {
+          setIsUploading(false);
+          setProcessingStage('idle');
+          setUploadProgress(0);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        }}
+      />
 
       {/* Upload Button */}
       <button

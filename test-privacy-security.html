@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy & Security Components Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .test-header {
+            background: #2563eb;
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+        .test-content {
+            height: 600px;
+            overflow-y: auto;
+        }
+        .test-info {
+            padding: 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .test-info h3 {
+            margin: 0 0 8px 0;
+            color: #495057;
+        }
+        .test-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h2>Privacy & Security Test</h2>
+        </div>
+        
+        <div class="test-info">
+            <h3>Testing Components:</h3>
+            <p>✅ PrivacySecurityIndicator - Data storage and permission status</p>
+            <p>✅ FileProcessingFeedback - CV upload security feedback</p>
+            <p>✅ SecurityWarnings - Security issue detection and resolution</p>
+            <p>✅ Privacy tab integration in main app</p>
+        </div>
+        
+        <div class="test-content">
+            <div id="extension-popup"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simulate loading the extension popup
+        document.addEventListener('DOMContentLoaded', function() {
+            const popupContainer = document.getElementById('extension-popup');
+            
+            // Create iframe to load the actual popup
+            const iframe = document.createElement('iframe');
+            iframe.src = './dist/popup/index.html';
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            
+            popupContainer.appendChild(iframe);
+            
+            // Add test instructions
+            const instructions = document.createElement('div');
+            instructions.innerHTML = `
+                <div style="padding: 16px; background: #e3f2fd; border-top: 1px solid #bbdefb;">
+                    <h4 style="margin: 0 0 8px 0; color: #1565c0;">Test Instructions:</h4>
+                    <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: #1976d2;">
+                        <li>Click on the "Privacy" tab (🔒)</li>
+                        <li>Verify data storage information is displayed</li>
+                        <li>Check permission status indicators</li>
+                        <li>Look for security warnings (if any)</li>
+                        <li>Test the "Clear All Data" functionality</li>
+                        <li>Upload a CV to test file processing feedback</li>
+                    </ol>
+                </div>
+            `;
+            
+            popupContainer.appendChild(instructions);
+        });
+    </script>
+</body>
+</html>

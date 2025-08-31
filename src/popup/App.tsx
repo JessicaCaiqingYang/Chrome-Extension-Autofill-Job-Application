@@ -3,6 +3,7 @@ import { ProfileForm } from './components/ProfileForm';
 import { CVUploader } from './components/CVUploader';
 import { AutofillToggle } from './components/AutofillToggle';
 import { StatusIndicator } from './components/StatusIndicator';
+import { PrivacySecurityIndicator } from './components/PrivacySecurityIndicator';
 import { NotificationContainer } from './components/NotificationContainer';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { UserProfile, CVData } from '../shared/types';
@@ -43,10 +44,16 @@ const tabs = [
     icon: '⚡', // Lightning bolt for automation
     ariaLabel: 'Configure autofill settings'
   },
+  { 
+    id: 'privacy' as const, 
+    label: 'Privacy', 
+    icon: '🔒', // Lock icon for privacy/security
+    ariaLabel: 'Privacy and security information'
+  },
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'cv' | 'autofill' | 'status'>('status');
+  const [activeTab, setActiveTab] = useState<'profile' | 'cv' | 'autofill' | 'status' | 'privacy'>('status');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -317,6 +324,10 @@ function App() {
           
           {activeTab === 'autofill' && (
             <AutofillToggle onToggleChange={handleToggleChange} />
+          )}
+          
+          {activeTab === 'privacy' && (
+            <PrivacySecurityIndicator />
           )}
         </div>
 
