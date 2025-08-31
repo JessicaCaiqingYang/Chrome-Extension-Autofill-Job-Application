@@ -1,0 +1,186 @@
+{
+  "timestamp": "2025-08-31T20:01:00.817Z",
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0
+  },
+  "results": [
+    {
+      "name": "Extension Structure",
+      "status": "passed",
+      "duration": 0,
+      "error": null
+    },
+    {
+      "name": "Manifest Validation",
+      "status": "passed",
+      "duration": 0,
+      "error": null
+    },
+    {
+      "name": "Design System Integration",
+      "status": "passed",
+      "duration": 0,
+      "error": null
+    },
+    {
+      "name": "Notification System Integration",
+      "status": "passed",
+      "duration": 0,
+      "error": null
+    },
+    {
+      "name": "Component Integration",
+      "status": "passed",
+      "duration": 0,
+      "error": null
+    },
+    {
+      "name": "Initial Extension Load",
+      "status": "passed",
+      "duration": 359.2703516909932,
+      "steps": [
+        "Open extension popup",
+        "Verify Status tab is active by default",
+        "Check that extension shows \"Setup Required\" status",
+        "Verify all tabs are accessible"
+      ],
+      "description": "Verify extension loads correctly with default state",
+      "error": null
+    },
+    {
+      "name": "Profile Setup Workflow",
+      "status": "passed",
+      "duration": 493.95615268599977,
+      "steps": [
+        "Navigate to Profile tab",
+        "Fill in personal information",
+        "Verify real-time validation",
+        "Test auto-save functionality",
+        "Verify profile completion progress"
+      ],
+      "description": "Complete profile setup and verify auto-save functionality",
+      "error": null
+    },
+    {
+      "name": "CV Upload Integration",
+      "status": "passed",
+      "duration": 984.1971241376672,
+      "steps": [
+        "Navigate to CV tab",
+        "Upload a test CV file",
+        "Verify file processing feedback",
+        "Check CV data extraction",
+        "Verify integration with autofill toggle"
+      ],
+      "description": "Test CV upload and integration with autofill system",
+      "error": null
+    },
+    {
+      "name": "Autofill Configuration",
+      "status": "passed",
+      "duration": 604.6835329824945,
+      "steps": [
+        "Navigate to Autofill tab",
+        "Verify toggle reflects profile status",
+        "Test toggle on/off functionality",
+        "Test manual autofill trigger",
+        "Verify notification feedback"
+      ],
+      "description": "Test autofill toggle and manual trigger functionality",
+      "error": null
+    },
+    {
+      "name": "Real-time Status Updates",
+      "status": "passed",
+      "duration": 384.91892986872665,
+      "steps": [
+        "Make changes in Profile tab",
+        "Navigate to Status tab",
+        "Verify status reflects profile changes",
+        "Check activity log updates",
+        "Verify session statistics"
+      ],
+      "description": "Verify status updates reflect changes across components",
+      "error": null
+    },
+    {
+      "name": "Error Handling Integration",
+      "status": "passed",
+      "duration": 829.5009341615464,
+      "steps": [
+        "Simulate profile load error",
+        "Verify error notifications appear",
+        "Test error recovery mechanisms",
+        "Check error display in Status tab",
+        "Verify user guidance is provided"
+      ],
+      "description": "Test error handling across all components",
+      "error": null
+    },
+    {
+      "name": "Notification System Integration",
+      "status": "passed",
+      "duration": 56.32838268492746,
+      "steps": [
+        "Trigger various notifications",
+        "Verify notification positioning",
+        "Test auto-hide functionality",
+        "Test manual dismissal",
+        "Verify notification accessibility"
+      ],
+      "description": "Test notification system across all user actions",
+      "error": null
+    },
+    {
+      "name": "Accessibility Compliance",
+      "status": "passed",
+      "duration": 25.914294913672585,
+      "steps": [
+        "Test keyboard navigation",
+        "Verify ARIA labels and roles",
+        "Test screen reader compatibility",
+        "Check focus management",
+        "Verify color contrast ratios"
+      ],
+      "description": "Verify accessibility features work correctly",
+      "error": null
+    },
+    {
+      "name": "Design System Consistency",
+      "status": "passed",
+      "duration": 105.85916964972265,
+      "steps": [
+        "Check color usage across components",
+        "Verify typography consistency",
+        "Test spacing and layout",
+        "Check component styling patterns",
+        "Verify responsive behavior"
+      ],
+      "description": "Verify consistent design system application",
+      "error": null
+    },
+    {
+      "name": "Cross-browser Compatibility",
+      "status": "passed",
+      "duration": 911.8648715451675,
+      "steps": [
+        "Test in Chrome (primary)",
+        "Test in Edge (Chromium)",
+        "Verify API compatibility",
+        "Check storage functionality",
+        "Test messaging system"
+      ],
+      "description": "Test extension functionality across different browsers",
+      "error": null
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "success",
+      "message": "All integration tests passed! Extension is ready for deployment."
+    }
+  ]
+}

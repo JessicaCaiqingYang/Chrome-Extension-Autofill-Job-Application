@@ -1,0 +1,143 @@
+{
+  "timestamp": "2025-08-31T20:01:00.824Z",
+  "wcagLevel": "AA",
+  "complianceScore": "50.0",
+  "complianceLevel": "Non-compliant",
+  "summary": {
+    "total": 6,
+    "passed": 3,
+    "failed": 3
+  },
+  "results": [
+    {
+      "name": "Color Contrast",
+      "status": "failed",
+      "duration": 1,
+      "category": "accessibility"
+    },
+    {
+      "name": "ARIA Implementation",
+      "status": "failed",
+      "duration": 3,
+      "category": "accessibility"
+    },
+    {
+      "name": "Keyboard Navigation",
+      "status": "passed",
+      "duration": 0,
+      "category": "accessibility"
+    },
+    {
+      "name": "Form Accessibility",
+      "status": "passed",
+      "duration": 0,
+      "category": "accessibility"
+    },
+    {
+      "name": "Notification Accessibility",
+      "status": "passed",
+      "duration": 1,
+      "category": "accessibility"
+    },
+    {
+      "name": "Reduced Motion Support",
+      "status": "failed",
+      "duration": 0,
+      "category": "accessibility"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "category": "Visual",
+      "message": "Improve color contrast ratios to meet WCAG AA standards",
+      "action": "Review and update color palette in design tokens"
+    },
+    {
+      "priority": "medium",
+      "category": "Screen Reader",
+      "message": "Improve ARIA implementation for better screen reader support",
+      "action": "Add missing ARIA labels, roles, and states to components"
+    },
+    {
+      "priority": "low",
+      "category": "Animation",
+      "message": "Add support for reduced motion preferences",
+      "action": "Implement prefers-reduced-motion media query support"
+    }
+  ],
+  "wcagGuidelines": [
+    {
+      "id": "1.1.1",
+      "name": "Non-text Content",
+      "description": "All non-text content has text alternatives",
+      "level": "A"
+    },
+    {
+      "id": "1.3.1",
+      "name": "Info and Relationships",
+      "description": "Information and relationships are programmatically determinable",
+      "level": "A"
+    },
+    {
+      "id": "1.4.3",
+      "name": "Contrast (Minimum)",
+      "description": "Text has sufficient contrast ratio",
+      "level": "AA"
+    },
+    {
+      "id": "2.1.1",
+      "name": "Keyboard",
+      "description": "All functionality is available via keyboard",
+      "level": "A"
+    },
+    {
+      "id": "2.1.2",
+      "name": "No Keyboard Trap",
+      "description": "Keyboard focus is not trapped",
+      "level": "A"
+    },
+    {
+      "id": "2.4.1",
+      "name": "Bypass Blocks",
+      "description": "Skip navigation mechanisms are available",
+      "level": "A"
+    },
+    {
+      "id": "2.4.3",
+      "name": "Focus Order",
+      "description": "Focus order is logical and intuitive",
+      "level": "A"
+    },
+    {
+      "id": "2.4.7",
+      "name": "Focus Visible",
+      "description": "Keyboard focus indicator is visible",
+      "level": "AA"
+    },
+    {
+      "id": "3.1.1",
+      "name": "Language of Page",
+      "description": "Primary language is programmatically determinable",
+      "level": "A"
+    },
+    {
+      "id": "3.2.1",
+      "name": "On Focus",
+      "description": "Focus does not trigger unexpected context changes",
+      "level": "A"
+    },
+    {
+      "id": "4.1.1",
+      "name": "Parsing",
+      "description": "Markup is valid and properly structured",
+      "level": "A"
+    },
+    {
+      "id": "4.1.2",
+      "name": "Name, Role, Value",
+      "description": "UI components have accessible names and roles",
+      "level": "A"
+    }
+  ]
+}

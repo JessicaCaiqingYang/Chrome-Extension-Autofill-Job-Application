@@ -1,0 +1,163 @@
+{
+  "timestamp": "2025-08-31T20:01:00.832Z",
+  "compatibilityScore": "60.0",
+  "compatibilityLevel": "Poor",
+  "supportedBrowsers": [
+    {
+      "name": "Chrome",
+      "version": "88+",
+      "engine": "Chromium",
+      "manifestVersion": 3,
+      "primary": true
+    },
+    {
+      "name": "Edge",
+      "version": "88+",
+      "engine": "Chromium",
+      "manifestVersion": 3,
+      "primary": false
+    },
+    {
+      "name": "Firefox",
+      "version": "109+",
+      "engine": "Gecko",
+      "manifestVersion": 3,
+      "primary": false,
+      "notes": "Limited MV3 support"
+    }
+  ],
+  "apiCompatibility": {
+    "chrome.storage": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "full"
+    },
+    "chrome.runtime": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "full"
+    },
+    "chrome.tabs": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "full"
+    },
+    "chrome.scripting": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "partial",
+      "notes": "Firefox has limited scripting API support"
+    },
+    "chrome.action": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "full"
+    },
+    "chrome.permissions": {
+      "Chrome": "full",
+      "Edge": "full",
+      "Firefox": "full"
+    }
+  },
+  "summary": {
+    "total": 5,
+    "passed": 3,
+    "failed": 2
+  },
+  "results": [
+    {
+      "name": "Manifest Compatibility",
+      "status": "passed",
+      "duration": 0,
+      "category": "compatibility"
+    },
+    {
+      "name": "Build Output Validation",
+      "status": "passed",
+      "duration": 1,
+      "category": "compatibility"
+    },
+    {
+      "name": "Content Script Compatibility",
+      "status": "failed",
+      "duration": 1,
+      "category": "compatibility"
+    },
+    {
+      "name": "Dependency Compatibility",
+      "status": "passed",
+      "duration": 2,
+      "category": "compatibility"
+    },
+    {
+      "name": "API Compatibility Matrix",
+      "status": "warning",
+      "duration": 0,
+      "category": "api",
+      "details": [
+        {
+          "api": "chrome.storage",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "full"
+          },
+          "overallSupport": "full"
+        },
+        {
+          "api": "chrome.runtime",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "full"
+          },
+          "overallSupport": "full"
+        },
+        {
+          "api": "chrome.tabs",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "full"
+          },
+          "overallSupport": "full"
+        },
+        {
+          "api": "chrome.scripting",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "partial"
+          },
+          "overallSupport": "partial"
+        },
+        {
+          "api": "chrome.action",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "full"
+          },
+          "overallSupport": "full"
+        },
+        {
+          "api": "chrome.permissions",
+          "browsers": {
+            "Chrome": "full",
+            "Edge": "full",
+            "Firefox": "full"
+          },
+          "overallSupport": "full"
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "medium",
+      "category": "Content Scripts",
+      "message": "Improve content script compatibility",
+      "action": "Avoid browser-specific APIs and use standard web APIs"
+    }
+  ]
+}
