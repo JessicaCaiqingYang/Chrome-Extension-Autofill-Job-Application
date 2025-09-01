@@ -304,7 +304,10 @@ class FormDetectionSystem {
                 weight: 1.0
             },
             [ContentFieldType.EMAIL]: {
-                patterns: ['email', 'email_address', 'emailaddress', 'e_mail', 'e-mail', 'mail'],
+                patterns: [
+                    'email', 'email_address', 'emailaddress', 'e_mail', 'e-mail', 'mail',
+                    'email address', 'electronic mail'
+                ],
                 weight: 1.2
             },
             [ContentFieldType.PHONE]: {
