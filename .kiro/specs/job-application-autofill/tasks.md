@@ -119,7 +119,6 @@
 - [ ] 11. Add comprehensive testing and validation
   - Create integration tests for end-to-end autofill workflows including file uploads
   - Add unit tests for field detection and mapping algorithms
-  - Test file upload functionality across different job sites
   - Implement manual testing procedures for different job sites
   - Validate extension performance and memory usage
-  - _Requirements: 4.1, 4.2, 5.1, 5.2, 5.3, 7.1, 7.2, 7.3_
+  - _Requirements: 4.1, 4.2, 5.1, 5.2, 5.3_

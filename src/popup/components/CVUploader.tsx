@@ -162,7 +162,7 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
       
       setUploadProgress(100);
       setProcessingStage('complete');
-
+      
       if (result && result.success && result.data) {
         setCvData(result.data);
         console.log('CVUploader: CV upload successful, data saved:', {
@@ -173,9 +173,9 @@ export const CVUploader: React.FC<CVUploaderProps> = ({ onCVUpdate }) => {
         });
         
         setSuccessMessage(`CV uploaded successfully! ${result.data.extractedText ? 'Text extracted.' : 'Processing...'}`);
-        
+          
         if (onCVUpdate) {
-          onCVUpdate(result.data);
+          onCVUpdate(newCVData);
         }
 
         // Clear success message after 3 seconds

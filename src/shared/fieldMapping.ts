@@ -1,5 +1,5 @@
 // Form field detection and mapping logic
-import { FieldMapping, FieldType, UserProfile, FileUploadMapping, FileUploadType } from './types';
+import { FieldMapping, FieldType, UserProfile } from './types';
 
 export const fieldMapping = {
   // Detect all fillable form fields on the current page
@@ -185,41 +185,17 @@ export const fieldMapping = {
     
     const identifierText = identifiers.join(' ');
     
-    // Find the best matching field type with improved scoring
+    // Find the best matching field type
     let bestMatch: FieldType | null = null;
     let bestScore = 0;
     
     Object.entries(patterns).forEach(([fieldType, keywords]) => {
-      let score = 0;
-      let hasExactMatch = false;
-      
-      keywords.forEach(keyword => {
+      const score = keywords.reduce((acc, keyword) => {
         if (identifierText.includes(keyword)) {
-          // Give higher priority to exact matches and compound terms
-          if (keyword.includes('_') || keyword.includes(' ') || keyword.length > 6) {
-            score += keyword.length * 2; // Boost compound/specific terms
-            hasExactMatch = true;
-          } else {
-            score += keyword.length;
-          }
+          return acc + keyword.length; // Longer matches get higher scores
         }
-      });
-      
-      // Special handling for email vs address conflict
-      if (fieldType === FieldType.EMAIL && identifierText.includes('email')) {
-        score += 20; // Strong boost for email fields
-        hasExactMatch = true;
-      }
-      
-      // Penalize generic matches when more specific ones exist
-      if (fieldType === FieldType.ADDRESS && identifierText.includes('email')) {
-        score = Math.max(0, score - 15); // Reduce score for address when email is present
-      }
-      
-      // Prefer exact matches over partial matches
-      if (hasExactMatch) {
-        score += 10;
-      }
+        return acc;
+      }, 0);
       
       if (score > bestScore) {
         bestScore = score;
@@ -239,26 +215,15 @@ export const fieldMapping = {
     
     // Boost confidence for exact matches
     const exactMatches: Partial<Record<FieldType, string[]>> = {
-      [FieldType.EMAIL]: ['email', 'email_address', 'emailaddress'],
-      [FieldType.PHONE]: ['phone', 'tel', 'telephone'],
+      [FieldType.EMAIL]: ['email'],
+      [FieldType.PHONE]: ['phone', 'tel'],
       [FieldType.FIRST_NAME]: ['firstname', 'first_name'],
-      [FieldType.LAST_NAME]: ['lastname', 'last_name'],
-      [FieldType.ADDRESS]: ['street_address', 'address_line']
+      [FieldType.LAST_NAME]: ['lastname', 'last_name']
     };
     
     const exactKeywords = exactMatches[fieldType] || [];
     if (exactKeywords.some((keyword: string) => identifierText.includes(keyword))) {
       confidence += 0.3;
-    }
-    
-    // Special boost for email fields when "email" is present
-    if (fieldType === FieldType.EMAIL && identifierText.includes('email')) {
-      confidence += 0.4; // Strong confidence boost for email
-    }
-    
-    // Penalize address fields when email context is present
-    if (fieldType === FieldType.ADDRESS && identifierText.includes('email')) {
-      confidence -= 0.5; // Strong penalty to prevent email/address confusion
     }
     
     // Boost confidence for multiple identifier sources

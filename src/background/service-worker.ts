@@ -275,16 +275,14 @@ async function handleSetCVData(payload: { fileData: any }): Promise<{ success: b
       fileSize: file.size,
       uploadDate: Date.now(),
       extractedText: extractedText.trim(),
-      fileType,
-      fileBlob, // Base64 encoded blob data
-      mimeType  // MIME type for proper file upload
+      fileType
     };
 
     // Save to storage
     const success = await storage.setCVData(cvData);
 
     if (success) {
-      console.log('CV data saved successfully with blob:', cvData.fileName);
+      console.log('CV data saved successfully:', cvData.fileName);
       return { success: true, data: cvData };
     } else {
       return { success: false, error: 'Failed to save CV data to storage' };
