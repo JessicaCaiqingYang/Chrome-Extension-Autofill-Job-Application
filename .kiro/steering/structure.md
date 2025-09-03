@@ -1,52 +1,65 @@
-# Project Structure
+---
+inclusion: always
+---
 
-## Root Directory
-- `package.json` - Dependencies and npm scripts
-- `vite.config.ts` - Multi-entry build configuration for extension components
-- `tsconfig.json` - TypeScript configuration with Chrome types
-- `public/` - Static assets and manifest
-- `src/` - Source code organized by extension component
-- `dist/` - Built extension (generated)
+# Project Structure & Architecture Guidelines
 
-## Source Organization (`src/`)
+## Chrome Extension Architecture
+This is a Manifest V3 Chrome extension with three main contexts:
+- **Popup**: React app (`src/popup/`) - user interface
+- **Background**: Service worker (`src/background/`) - persistent logic
+- **Content**: Injected scripts (`src/content/`) - page interaction
 
-### `/popup/` - React Popup Interface
-- `index.html` - Popup entry point
-- `main.tsx` - React app bootstrap
-- `App.tsx` - Main popup component
-- `components/` - Reusable React components
-  - `AutofillToggle.tsx` - Toggle autofill on/off
-  - `CVUploader.tsx` - File upload for CV/resume
-  - `ProfileForm.tsx` - User profile editing
-  - `StatusIndicator.tsx` - Extension status display
+## File Organization Rules
 
-### `/background/` - Service Worker
-- `service-worker.ts` - Background script for Chrome extension
-- Handles storage, messaging, and cross-tab coordination
+### Component Placement
+- React components → `src/popup/components/`
+- Shared utilities → `src/shared/`
+- Extension-specific logic → respective context folders
+- Types and interfaces → `src/shared/types.ts`
 
-### `/content/` - Content Scripts
-- `content-script.ts` - Injected into web pages
-- Form detection and autofill logic
+### Import Patterns
+- Always import from `src/shared/` for cross-context utilities
+- Use relative imports within the same context
+- Import Chrome APIs only in background and content scripts
+- React imports only in popup context
 
-### `/shared/` - Common Utilities
-- `types.ts` - TypeScript interfaces and enums
-- `messaging.ts` - Chrome runtime messaging utilities
-- `storage.ts` - Chrome storage API wrappers
-- `fieldMapping.ts` - Form field detection logic
+## Code Style Conventions
 
-## Public Assets (`public/`)
-- `manifest.json` - Chrome extension manifest (V3)
-- `icons/` - Extension icons (16, 32, 48, 128px)
+### File Naming
+- React components: `PascalCase.tsx` (e.g., `CVUploader.tsx`)
+- Utilities/hooks: `camelCase.ts` (e.g., `fieldMapping.ts`)
+- Chrome extension files: `kebab-case.ts` (e.g., `service-worker.ts`)
+- Test files: `ComponentName.test.tsx`
 
-## Architecture Patterns
-- **Component-based**: React components in popup
-- **Message passing**: Chrome runtime messaging between contexts
-- **Shared utilities**: Common code in `/shared/` folder
-- **Type safety**: Comprehensive TypeScript interfaces
-- **Storage abstraction**: Wrapper functions for Chrome storage API
+### Component Structure
+- Export components as default exports
+- Use TypeScript interfaces for props
+- Place component-specific types in the same file
+- Use functional components with hooks
 
-## File Naming Conventions
-- React components: PascalCase (e.g., `AutofillToggle.tsx`)
-- Utilities: camelCase (e.g., `fieldMapping.ts`)
-- Constants/types: camelCase files with PascalCase exports
-- Chrome extension files: kebab-case (e.g., `service-worker.ts`, `content-script.ts`)
+### Messaging Architecture
+- All cross-context communication via Chrome runtime messaging
+- Message types defined in `src/shared/types.ts`
+- Use helper functions from `src/shared/messaging.ts`
+- Always handle message errors gracefully
+
+## Development Guidelines
+
+### When Adding Features
+1. Define types in `src/shared/types.ts` first
+2. Add shared utilities to `src/shared/`
+3. Implement UI components in `src/popup/components/`
+4. Update messaging if cross-context communication needed
+
+### Storage Patterns
+- Use Chrome storage API wrappers from `src/shared/storage.ts`
+- Store user data in `chrome.storage.local`
+- Use consistent key naming (camelCase)
+- Always validate data when reading from storage
+
+### Error Handling
+- Import error utilities from `src/shared/errorHandling.ts`
+- Log errors but never break page functionality
+- Provide user feedback for critical errors
+- Use type guards for runtime validation
