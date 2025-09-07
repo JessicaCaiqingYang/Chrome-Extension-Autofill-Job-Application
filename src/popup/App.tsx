@@ -228,7 +228,7 @@ function App() {
         {/* Header */}
         <div style={headerStyle}>
           <h1 style={titleStyle}>
-            Job Application Autofill
+            ApplyNinja
           </h1>
           
           {/* Enhanced Tab Navigation */}

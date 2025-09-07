@@ -1,4 +1,4 @@
-# Job Application Autofill Chrome Extension
+# ApplyNinja Chrome Extension
 
 A Chrome extension built with React, TypeScript, and Vite that automatically fills job application forms with stored user profile data and uploads CV/resume files to file upload fields.
 

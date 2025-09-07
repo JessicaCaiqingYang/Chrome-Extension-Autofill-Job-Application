@@ -1,4 +1,4 @@
-# Job Application Autofill Extension - Integration Verification
+# ApplyNinja Job Application Autofill Chrome Extension - Integration Verification
 
 ## Overview
 This document outlines the verification steps for Task 6: "Integrate components and implement communication"

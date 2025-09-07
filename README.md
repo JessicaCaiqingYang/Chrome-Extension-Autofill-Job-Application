@@ -1,4 +1,4 @@
-# Job Application Autofill Chrome Extension
+# ApplyNinja
 
 A Chrome extension that automatically fills job application forms with stored user profile data, helping job seekers streamline their application process.
 
