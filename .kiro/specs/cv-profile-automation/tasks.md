@@ -38,14 +38,14 @@
     - Add skill aggregation and deduplication functionality
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 3. Create profile mapping service
-  - [ ] 3.1 Create ProfileMapper service class
+- [x] 3. Create profile mapping service
+  - [x] 3.1 Create ProfileMapper service class
     - Write ProfileMapper class in `src/shared/profileMapper.ts` to convert extracted CV data to UserProfile format
     - Implement mapExtractedDataToProfile method to transform parsed CV data into profile structure
     - Add validation methods for mapped profile data
     - _Requirements: 2.3, 6.1, 6.2, 6.3_
 
-  - [ ] 3.2 Implement profile merging functionality
+  - [x] 3.2 Implement profile merging functionality
     - Write mergeWithExistingProfile method to combine extracted data with existing user profile
     - Add logic to preserve user-modified data while updating auto-extracted fields
     - Implement conflict resolution for overlapping data
