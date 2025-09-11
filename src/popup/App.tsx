@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { ProfileForm } from './components/ProfileForm';
 import { CVUploader } from './components/CVUploader';
 import { AutofillToggle } from './components/AutofillToggle';
-import { StatusIndicator } from './components/StatusIndicator';
 import { PrivacySecurityIndicator } from './components/PrivacySecurityIndicator';
+import { StatusBadge } from './components/StatusBadge';
 import { NotificationContainer } from './components/NotificationContainer';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { UserProfile, CVData } from '../shared/types';
@@ -15,17 +15,12 @@ import {
   shadows, 
   transitions,
   textStyles,
+  layoutStyles,
   mergeStyles
 } from '../shared/design-system';
 
 // Tab configuration with icons and labels
 const tabs = [
-  { 
-    id: 'status' as const, 
-    label: 'Status', 
-    icon: '●', // Status indicator dot
-    ariaLabel: 'Extension status and activity'
-  },
   { 
     id: 'profile' as const, 
     label: 'Profile', 
@@ -53,7 +48,7 @@ const tabs = [
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'cv' | 'autofill' | 'status' | 'privacy'>('status');
+  const [activeTab, setActiveTab] = useState<'profile' | 'cv' | 'autofill' | 'privacy'>('profile');
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -227,9 +222,12 @@ function App() {
       <div style={containerStyle}>
         {/* Header */}
         <div style={headerStyle}>
-          <h1 style={titleStyle}>
-            ApplyNinja
-          </h1>
+          <div style={layoutStyles.flexBetween}>
+            <h1 style={titleStyle}>
+              ApplyNinja
+            </h1>
+            <StatusBadge />
+          </div>
           
           {/* Enhanced Tab Navigation */}
           <nav 
@@ -310,10 +308,6 @@ function App() {
           aria-labelledby={`tab-${activeTab}`}
           className="tab-content"
         >
-          {activeTab === 'status' && (
-            <StatusIndicator />
-          )}
-          
           {activeTab === 'profile' && (
             <ProfileForm onProfileUpdate={handleProfileUpdate} />
           )}
