@@ -183,3 +183,58 @@ export interface FieldDetectionResult {
   fieldMappings: FieldMapping[];
   fileUploadMappings: FileUploadMapping[];
 }
+
+// CV Parsing Types
+export interface PersonalInfo {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postCode?: string;
+    country?: string;
+  };
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+}
+
+export interface WorkExperience {
+  jobTitle: string;
+  company: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  description?: string;
+  achievements?: string[];
+}
+
+export interface Education {
+  degree: string;
+  institution: string;
+  graduationDate?: string;
+  gpa?: string;
+  fieldOfStudy?: string;
+  honors?: string;
+}
+
+export interface ExtractedProfileData {
+  personalInfo: Partial<PersonalInfo>;
+  workExperience: WorkExperience[];
+  education: Education[];
+  skills: string[];
+  confidence: {
+    personalInfo: number;
+    workExperience: number;
+    education: number;
+    skills: number;
+  };
+}
+
+export interface ExtractionPattern {
+  pattern: RegExp;
+  confidence: number;
+  processor: (match: RegExpMatchArray) => any;
+}

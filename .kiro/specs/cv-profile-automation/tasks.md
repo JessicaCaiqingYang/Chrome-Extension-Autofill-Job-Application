@@ -7,32 +7,32 @@
   - Update CSS and styling to accommodate 4-tab layout instead of 5-tab
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Create CV parsing service infrastructure
-  - [ ] 2.1 Create CVParser service class with text analysis methods
+- [x] 2. Create CV parsing service infrastructure
+  - [x] 2.1 Create CVParser service class with text analysis methods
     - Write CVParser class in `src/shared/cvParser.ts` with methods for extracting personal info, work experience, education, and skills
     - Implement regex patterns and text processing utilities for common CV formats
     - Add confidence scoring system for extraction quality assessment
     - _Requirements: 2.1, 2.2, 7.1, 7.2, 7.3, 7.4_
 
-  - [ ] 2.2 Implement personal information extraction
+  - [x] 2.2 Implement personal information extraction
     - Write extractPersonalInfo method to identify name, email, phone, and address from CV text
     - Create regex patterns for various contact information formats
     - Add validation and normalization for extracted personal data
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 2.3 Implement work experience parsing
+  - [x] 2.3 Implement work experience parsing
     - Write extractWorkExperience method to identify job titles, companies, dates, and descriptions
     - Create patterns for various date formats and employment history layouts
     - Add logic to organize experience chronologically
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-  - [ ] 2.4 Implement education information extraction
+  - [x] 2.4 Implement education information extraction
     - Write extractEducation method to identify degrees, institutions, graduation dates, and academic details
     - Create patterns for various education formats and degree types
     - Add support for GPA, honors, and certification extraction
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 2.5 Implement skills and competencies extraction
+  - [x] 2.5 Implement skills and competencies extraction
     - Write extractSkills method to identify technical and soft skills from CV text
     - Create skill categorization logic (technical, language, soft skills)
     - Add skill aggregation and deduplication functionality
