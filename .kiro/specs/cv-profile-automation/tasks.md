@@ -51,14 +51,14 @@
     - Implement conflict resolution for overlapping data
     - _Requirements: 6.3, 6.4_
 
-- [ ] 4. Enhance CV uploader component with automatic extraction
-  - [ ] 4.1 Add profile extraction trigger to CVUploader
+- [x] 4. Enhance CV uploader component with automatic extraction
+  - [x] 4.1 Add profile extraction trigger to CVUploader
     - Modify CVUploader component to automatically trigger profile extraction after successful CV upload
     - Add onProfileExtracted callback prop to communicate extracted data to parent components
     - Implement extraction progress indicators and user feedback
     - _Requirements: 2.1, 2.2, 8.1, 8.2_
 
-  - [ ] 4.2 Add extraction results preview
+  - [x] 4.2 Add extraction results preview
     - Create UI section in CVUploader to display extracted information summary
     - Add visual indicators showing extraction confidence levels
     - Implement expandable sections for detailed extracted data review

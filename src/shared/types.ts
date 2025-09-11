@@ -35,6 +35,10 @@ export interface CVData {
   fileType: 'pdf' | 'docx';
   fileBlob: string; // Base64 encoded blob data for Chrome storage compatibility
   mimeType: string; // MIME type for proper file upload
+  // New fields for profile extraction
+  profileExtracted?: boolean;
+  extractedProfile?: ExtractedProfileData;
+  extractionDate?: number;
 }
 
 export interface FieldMapping {
@@ -88,7 +92,9 @@ export enum MessageType {
   AUTOFILL_COMPLETE = 'AUTOFILL_COMPLETE',
   AUTOFILL_PROGRESS = 'AUTOFILL_PROGRESS',
   FIELDS_DETECTED = 'FIELDS_DETECTED',
-  ERROR = 'ERROR'
+  ERROR = 'ERROR',
+  EXTRACT_PROFILE_FROM_CV = 'EXTRACT_PROFILE_FROM_CV',
+  PROFILE_EXTRACTION_COMPLETE = 'PROFILE_EXTRACTION_COMPLETE'
 }
 
 // Storage keys for Chrome storage

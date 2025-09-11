@@ -223,5 +223,25 @@ export const messaging = {
     } catch (err) {
       console.error('Error sending error message:', err);
     }
+  },
+
+  // Extract profile from CV
+  async extractProfileFromCV(cvData: any): Promise<any> {
+    return this.sendToServiceWorker({
+      type: MessageType.EXTRACT_PROFILE_FROM_CV,
+      payload: { cvData }
+    });
+  },
+
+  // Notify profile extraction completion
+  async notifyProfileExtractionComplete(result: any): Promise<void> {
+    try {
+      await this.sendToServiceWorker({
+        type: MessageType.PROFILE_EXTRACTION_COMPLETE,
+        payload: result
+      });
+    } catch (error) {
+      console.error('Error notifying profile extraction completion:', error);
+    }
   }
 };
