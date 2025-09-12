@@ -9,7 +9,8 @@ export enum ErrorCategory {
   SYSTEM = 'system',
   USER_INPUT = 'user_input',
   CONTENT_SCRIPT = 'content_script',
-  STORAGE = 'storage'
+  STORAGE = 'storage',
+  CV_PARSING = 'cv_parsing'
 }
 
 export enum ErrorSeverity {
@@ -63,6 +64,17 @@ export interface DiagnosticInfo {
     userAgent?: string;
     language?: string;
   };
+}
+
+// CV Parsing specific error types
+export enum CVParsingError {
+  EXTRACTION_FAILED = 'CV_PARSE_001',
+  INSUFFICIENT_DATA = 'CV_PARSE_002',
+  FORMAT_NOT_SUPPORTED = 'CV_PARSE_003',
+  PARSING_TIMEOUT = 'CV_PARSE_004',
+  TEXT_EXTRACTION_FAILED = 'CV_PARSE_005',
+  PATTERN_MATCHING_FAILED = 'CV_PARSE_006',
+  CONFIDENCE_TOO_LOW = 'CV_PARSE_007'
 }
 
 // Predefined error codes with user-friendly messages and recovery actions
@@ -430,6 +442,231 @@ export const ERROR_DEFINITIONS: Record<string, Omit<ExtensionError, 'id' | 'time
         priority: 2
       }
     ]
+  },
+
+  // CV Parsing Errors
+  'CV_PARSE_001': {
+    code: 'CV_PARSE_001',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.HIGH,
+    message: 'CV extraction failed',
+    userMessage: 'Unable to extract information from your CV. The document may be corrupted or in an unsupported format.',
+    technicalDetails: 'CV parsing service failed to extract any meaningful data from the uploaded document',
+    recoveryActions: [
+      {
+        id: 'try_different_format',
+        label: 'Try Different Format',
+        description: 'Convert your CV to PDF or DOCX format and try again',
+        type: 'instruction',
+        priority: 1
+      },
+      {
+        id: 'manual_entry',
+        label: 'Enter Manually',
+        description: 'Fill out your profile information manually',
+        type: 'button',
+        priority: 2
+      },
+      {
+        id: 'check_cv_content',
+        label: 'Check CV Content',
+        description: 'Make sure your CV contains readable text (not just images)',
+        type: 'instruction',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_002': {
+    code: 'CV_PARSE_002',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.MEDIUM,
+    message: 'Insufficient data extracted',
+    userMessage: 'Only limited information could be extracted from your CV. You may need to complete your profile manually.',
+    technicalDetails: 'CV parsing completed but extracted data is below minimum confidence threshold',
+    recoveryActions: [
+      {
+        id: 'review_extracted',
+        label: 'Review Extracted Data',
+        description: 'Check what information was found and add missing details',
+        type: 'button',
+        priority: 1
+      },
+      {
+        id: 'improve_cv_format',
+        label: 'Improve CV Format',
+        description: 'Use clear headings and standard formatting in your CV',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'try_reextraction',
+        label: 'Try Re-extraction',
+        description: 'Attempt to extract information again',
+        type: 'button',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_003': {
+    code: 'CV_PARSE_003',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.MEDIUM,
+    message: 'CV format not supported',
+    userMessage: 'Your CV format is not fully supported. Some information may not be extracted correctly.',
+    technicalDetails: 'Document format or structure not recognized by parsing patterns',
+    recoveryActions: [
+      {
+        id: 'convert_to_standard',
+        label: 'Use Standard Format',
+        description: 'Convert your CV to a standard PDF or Word document',
+        type: 'instruction',
+        priority: 1
+      },
+      {
+        id: 'use_template',
+        label: 'Use CV Template',
+        description: 'Consider using a standard CV template for better extraction',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'manual_completion',
+        label: 'Complete Manually',
+        description: 'Fill in any missing information manually',
+        type: 'button',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_004': {
+    code: 'CV_PARSE_004',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.MEDIUM,
+    message: 'CV parsing timeout',
+    userMessage: 'CV processing is taking too long. This may be due to a large file size or complex formatting.',
+    technicalDetails: 'CV parsing operation exceeded maximum allowed processing time',
+    recoveryActions: [
+      {
+        id: 'reduce_file_size',
+        label: 'Reduce File Size',
+        description: 'Try uploading a smaller version of your CV (under 5MB)',
+        type: 'instruction',
+        priority: 1
+      },
+      {
+        id: 'simplify_format',
+        label: 'Simplify Format',
+        description: 'Remove complex formatting, images, or graphics from your CV',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'retry_extraction',
+        label: 'Try Again',
+        description: 'Retry the extraction process',
+        type: 'button',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_005': {
+    code: 'CV_PARSE_005',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.HIGH,
+    message: 'Text extraction failed',
+    userMessage: 'Unable to read text from your CV. The file may be corrupted or password-protected.',
+    technicalDetails: 'Document text extraction failed at the file processing level',
+    recoveryActions: [
+      {
+        id: 'check_file_integrity',
+        label: 'Check File',
+        description: 'Make sure your CV file opens correctly in other applications',
+        type: 'instruction',
+        priority: 1
+      },
+      {
+        id: 'remove_password',
+        label: 'Remove Password',
+        description: 'If your CV is password-protected, save it without a password',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'try_different_file',
+        label: 'Try Different File',
+        description: 'Upload a different version of your CV',
+        type: 'instruction',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_006': {
+    code: 'CV_PARSE_006',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.LOW,
+    message: 'Pattern matching failed',
+    userMessage: 'Some sections of your CV could not be automatically identified. Manual review recommended.',
+    technicalDetails: 'CV parsing patterns failed to match expected data structures in the document',
+    recoveryActions: [
+      {
+        id: 'review_sections',
+        label: 'Review Sections',
+        description: 'Check which sections were found and add missing information',
+        type: 'button',
+        priority: 1
+      },
+      {
+        id: 'use_standard_headings',
+        label: 'Use Standard Headings',
+        description: 'Use common section headings like "Experience", "Education", "Skills"',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'manual_organization',
+        label: 'Organize Manually',
+        description: 'Manually organize your profile information',
+        type: 'button',
+        priority: 3
+      }
+    ]
+  },
+
+  'CV_PARSE_007': {
+    code: 'CV_PARSE_007',
+    category: ErrorCategory.CV_PARSING,
+    severity: ErrorSeverity.LOW,
+    message: 'Low extraction confidence',
+    userMessage: 'Information was extracted from your CV, but the accuracy may be low. Please review carefully.',
+    technicalDetails: 'CV parsing completed but confidence scores are below recommended thresholds',
+    recoveryActions: [
+      {
+        id: 'verify_extracted',
+        label: 'Verify Information',
+        description: 'Carefully review all extracted information for accuracy',
+        type: 'button',
+        priority: 1
+      },
+      {
+        id: 'improve_cv_clarity',
+        label: 'Improve CV Clarity',
+        description: 'Use clearer formatting and standard terminology in your CV',
+        type: 'instruction',
+        priority: 2
+      },
+      {
+        id: 'manual_corrections',
+        label: 'Make Corrections',
+        description: 'Manually correct any inaccurate information',
+        type: 'button',
+        priority: 3
+      }
+    ]
   }
 };
 
@@ -511,5 +748,10 @@ export const CATEGORY_CONFIG = {
     name: 'Storage',
     description: 'Data storage and persistence issues',
     icon: '💾'
+  },
+  [ErrorCategory.CV_PARSING]: {
+    name: 'CV Parsing',
+    description: 'CV document processing and extraction issues',
+    icon: '📄'
   }
 };

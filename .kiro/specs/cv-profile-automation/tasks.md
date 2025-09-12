@@ -64,33 +64,33 @@
     - Implement expandable sections for detailed extracted data review
     - _Requirements: 6.1, 8.3, 8.4_
 
-- [ ] 5. Enhance profile form with auto-population support
-  - [ ] 5.1 Modify ProfileForm to accept extracted profile data
+- [x] 5. Enhance profile form with auto-population support
+  - [x] 5.1 Modify ProfileForm to accept extracted profile data
     - Add extractedProfile prop to ProfileForm component
     - Implement auto-population of form fields with extracted data
     - Add visual indicators to distinguish auto-populated vs manually entered fields
     - _Requirements: 2.3, 6.1, 6.2_
 
-  - [ ] 5.2 Add re-extraction functionality
+  - [x] 5.2 Add re-extraction functionality
     - Create "Re-extract from CV" button in ProfileForm
     - Implement onReExtract callback to trigger CV re-processing
     - Add confirmation dialog for re-extraction to prevent accidental data loss
     - _Requirements: 6.4, 6.5_
 
-  - [ ] 5.3 Implement extraction confidence indicators
+  - [x] 5.3 Implement extraction confidence indicators
     - Add confidence score display for each auto-populated field
     - Create visual styling for high, medium, and low confidence extractions
     - Add tooltips explaining confidence levels and extraction sources
     - _Requirements: 8.3, 8.5_
 
-- [ ] 6. Update data types and interfaces
-  - [ ] 6.1 Extend CVData interface for profile extraction
+- [x] 6. Update data types and interfaces
+  - [x] 6.1 Extend CVData interface for profile extraction
     - Add profileExtracted, extractedProfile, and extractionDate fields to CVData interface in types.ts
     - Create ExtractedProfileData interface with confidence scoring
     - Add PersonalInfo, WorkExperience, and Education interfaces for structured CV data
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 6.2 Add CV parsing error types
+  - [x] 6.2 Add CV parsing error types
     - Create CVParsingError enum in errorTypes.ts for extraction-specific errors
     - Add error handling patterns for parsing failures and insufficient data
     - Implement error recovery strategies for partial extraction success
